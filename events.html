@@ -161,7 +161,7 @@ async function load() {
   if (!TOKEN) { showOnly("screen-error"); return; }
   try {
     const [data, ads] = await Promise.all([apiGet("listEvents", { token: TOKEN }), loadAds("交流会")]);
-    if (!Array.isArray(data)) { showOnly("screen-error"); return; }
+    if (!Array.isArray(data)) { showAccessError(data && data.error); return; }
     events = data;
     document.getElementById("ad-banner").innerHTML = ads.length ? renderAdCard(ads[Math.floor(Math.random() * ads.length)]) : "";
     render();

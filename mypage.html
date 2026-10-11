@@ -12,6 +12,9 @@
   .menu a { display: flex; flex-direction: column; gap: 2px; background: var(--surface); padding: 22px 20px; text-decoration: none; color: var(--ink-soft); transition: background .15s; }
   .menu a:hover { background: #fafbfc; }
   .menu a:hover .menu__title { color: var(--accent-deep); }
+  .menu a.is-locked { pointer-events: none; background: #f7f8fa; }
+  .menu a.is-locked .menu__icon { background: var(--line); color: var(--muted); }
+  .menu a.is-locked .menu__title { color: var(--muted); }
   .menu__icon { width: 40px; height: 40px; border-radius: 50%; background: var(--primary-soft); color: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 18px; margin-bottom: 10px; }
   .menu__title { font-size: 15px; font-weight: 700; color: var(--ink); }
   .menu__text { font-size: 12px; color: var(--muted); }
@@ -48,9 +51,9 @@
   <div class="screen" id="screen-home">
     <div id="status-box"></div>
     <div class="menu">
-      <a href="#" data-link="members.html"><div class="menu__icon"><span data-icon="search"></span></div><div class="menu__title">会員を探す</div><div class="menu__text">業種別に会員のプロフィールを見る</div></a>
-      <a href="#" data-link="agency.html"><div class="menu__icon"><span data-icon="briefcase"></span></div><div class="menu__title">代理店</div><div class="menu__text">代理店を探す・代理店を募集する</div></a>
-      <a href="#" data-link="events.html"><div class="menu__icon"><span data-icon="calendar"></span></div><div class="menu__title">交流会・商談会</div><div class="menu__text">開催予定のイベントに申し込む</div></a>
+      <a href="#" data-link="members.html" data-member-only data-text="業種別に会員のプロフィールを見る"><div class="menu__icon"><span data-icon="search"></span></div><div class="menu__title">会員を探す</div><div class="menu__text">業種別に会員のプロフィールを見る</div></a>
+      <a href="#" data-link="agency.html" data-member-only data-text="代理店を探す・代理店を募集する"><div class="menu__icon"><span data-icon="briefcase"></span></div><div class="menu__title">代理店</div><div class="menu__text">代理店を探す・代理店を募集する</div></a>
+      <a href="#" data-link="events.html" data-member-only data-text="開催予定のイベントに申し込む"><div class="menu__icon"><span data-icon="calendar"></span></div><div class="menu__title">交流会・商談会</div><div class="menu__text">開催予定のイベントに申し込む</div></a>
       <a href="#" data-link="ads.html"><div class="menu__icon"><span data-icon="megaphone"></span></div><div class="menu__title">広告を出す</div><div class="menu__text">COACT内に広告を掲載する</div></a>
     </div>
     <div class="two-col">
@@ -96,12 +99,19 @@ function renderHome() {
   document.getElementById("hello").textContent = `${profile.name} さんのマイページ`;
   const box = document.getElementById("status-box");
   if (profile.status === "承認待ち") {
-    box.innerHTML = `<div class="status-box status-box--pending">${icon("clock")}<span>現在、運営がプロフィールを確認中です。承認されると会員一覧に掲載されます（他の会員の閲覧はすでに可能です）。</span></div>`;
+    box.innerHTML = `<div class="status-box status-box--pending">${icon("clock")}<span>現在、運営がプロフィールを確認中です。承認されると会員一覧に掲載され、会員検索・代理店・交流会がご利用いただけるようになります（承認時にメールでお知らせします）。それまでの間も、プロフィールの確認・編集はできます。</span></div>`;
   } else if (profile.status === "非公開") {
     box.innerHTML = `<div class="status-box status-box--hidden">${icon("alert")}<span>現在、あなたのプロフィールは非公開になっています。詳しくは運営までお問い合わせください。</span></div>`;
   } else {
     box.innerHTML = "";
   }
+  // 承認前（または非公開）の会員は、他の会員を見るページへのメニューを押せないようにする
+  const locked = profile.status !== "公開";
+  document.querySelectorAll(".menu a[data-member-only]").forEach(a => {
+    a.classList.toggle("is-locked", locked);
+    a.href = locked ? "#" : withToken(a.dataset.link);
+    a.querySelector(".menu__text").textContent = locked ? "運営の承認後にご利用いただけます" : a.dataset.text;
+  });
   document.getElementById("self-card").innerHTML = renderMemberCard(profile, { open: true, preview: true });
 }
 

@@ -249,7 +249,7 @@ async function load() {
   if (!TOKEN) { showOnly("screen-error"); return; }
   try {
     const [data, ads] = await Promise.all([apiGet("listAgency", { token: TOKEN }), loadAds("代理店")]);
-    if (!data || data.error) { showOnly("screen-error"); return; }
+    if (!data || data.error) { showAccessError(data && data.error); return; }
     posts = data.posts || [];
     agents = data.agents || [];
     document.getElementById("ad-banner").innerHTML = ads.length ? renderAdCard(ads[Math.floor(Math.random() * ads.length)]) : "";

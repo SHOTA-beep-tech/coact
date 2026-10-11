@@ -84,6 +84,24 @@ function fmtDate(value) {
   return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
 }
 
+// 会員専用ページで読み込めなかったときの表示（承認待ち・非公開の場合は理由を表示）
+function showAccessError(err) {
+  const screen = document.getElementById("screen-error");
+  const messages = {
+    pending: ["運営の承認をお待ちください", "このページは、運営の承認後にご利用いただけます。承認されるとメールでお知らせします。それまでの間も、マイページでご自身のプロフィールの確認・編集ができます。"],
+    hidden: ["現在このページはご利用いただけません", "詳しくは運営までお問い合わせください。"],
+  };
+  if (screen && messages[err]) {
+    screen.innerHTML = `<div class="state-card">
+      <div class="state-card__icon">${icon(err === "pending" ? "clock" : "alert")}</div>
+      <div class="state-card__title">${messages[err][0]}</div>
+      <div class="state-card__body">${messages[err][1]}</div>
+      <div style="margin-top:20px"><a class="btn btn--primary" href="${withToken("mypage.html")}">マイページへ</a></div>
+    </div>`;
+  }
+  showOnly("screen-error");
+}
+
 function showOnly(id) {
   let target = null;
   document.querySelectorAll(".screen").forEach(s => {
@@ -534,6 +552,9 @@ const Demo = (() => {
     ],
   };
   db.members.forEach((m, i) => { if (!m.token) m.token = "t" + i; });
+  // デモ確認用：URLに &demoStatus=承認待ち を付けると承認待ちの見え方を確認できます
+  const demoStatus = new URLSearchParams(location.search).get("demoStatus");
+  if (demoStatus) db.members[0].status = demoStatus;
   db.adRequests = [{ id: "r1", status: "未対応", company: "株式会社サンプル", name: "広告 担当", email: "ad@example.com", phone: "03-0000-0000", plan: "会員一覧ページ", message: "クラウド会計サービスの広告を検討しています。", timestamp: "2026-10-08" }];
   db.intros = [{ id: "i1", status: "未対応", fromToken: "t2", fromName: "田中 健太", targetType: "agency", targetId: "p1", targetName: "高橋 彩", message: "代理店として紹介したい先が3社あります", timestamp: "2026-10-09" }];
   const SHEET_MAP = { Members: "members", AgencyPosts: "posts", Events: "events", EventEntries: "entries", Ads: "ads", AdRequests: "adRequests", Intros: "intros", Comments: "comments" };
@@ -552,6 +573,7 @@ const Demo = (() => {
       return wait(out); // デモではどのパスワードでもログインできます
     }
     if (p.token !== SELF) return wait({ error: "invalid token" });
+    if (action !== "getProfile" && self().status !== "公開") return wait({ error: self().status === "承認待ち" ? "pending" : "hidden" });
     switch (action) {
       case "getProfile": return wait(self());
       case "listMembers": return wait(db.members.filter(m => m.token !== SELF && m.status === "公開")

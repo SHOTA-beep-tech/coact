@@ -107,7 +107,7 @@ async function load() {
   if (!TOKEN) { showOnly("screen-error"); return; }
   try {
     const [data, adList] = await Promise.all([apiGet("listMembers", { token: TOKEN }), loadAds("会員一覧")]);
-    if (!Array.isArray(data)) { showOnly("screen-error"); return; }
+    if (!Array.isArray(data)) { showAccessError(data && data.error); return; }
     members = data;
     ads = adList;
     const preset = new URLSearchParams(location.search).get("industry");
