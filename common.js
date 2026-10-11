@@ -3,7 +3,7 @@
 // ============ ここを書き換えてください ============
 // Google Apps Script をデプロイした後に発行される「ウェブアプリURL」を貼り付けます。
 // 空欄のままだと「デモ表示」になり、サンプルデータで画面の見た目だけ確認できます。
-const GAS_ENDPOINT_URL = "";
+const GAS_ENDPOINT_URL = "https://script.google.com/macros/s/AKfycbznX6lf558KRJvnuOQ6o_ku0xboyE9PBxItOAuBGcV-E1c7-xmXK-pbQC0iMcIEokOK/exec";
 // ================================================
 
 const SERVICE_NAME = "COACT";
