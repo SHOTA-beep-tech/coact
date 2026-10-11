@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>COACT | 交流会・商談会</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=Montserrat:wght@700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="common.css">
+<style>
+  .event-list { display: grid; gap: 16px; }
+  .ecard { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); display: grid; grid-template-columns: 128px 1fr; }
+  .ecard__date { border-right: 1px solid var(--line); background: #fafbfc; color: var(--primary); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px 8px; text-align: center; }
+  .ecard__type { white-space: nowrap; font-size: 11px; font-weight: 700; color: var(--accent-deep); letter-spacing: .08em; margin-bottom: 4px; }
+  .ecard__year { font-family: "Montserrat", sans-serif; font-size: 11px; font-weight: 600; color: var(--muted); letter-spacing: .1em; }
+  .ecard__md { font-family: "Montserrat", sans-serif; font-size: 30px; font-weight: 700; line-height: 1.15; letter-spacing: .02em; }
+  .ecard__time { white-space: nowrap; font-size: 11.5px; color: var(--muted); margin-top: 4px; }
+  .ecard__main { min-width: 0; display: flex; flex-direction: column; }
+  .ecard__title { font-size: 17px; font-weight: 700; color: var(--ink); padding: 20px 22px 8px; line-height: 1.5; letter-spacing: .02em; }
+  .ecard__meta { padding: 0 22px; font-size: 13px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 20px; }
+  .ecard__meta div { display: flex; gap: 8px; align-items: center; }
+  .ecard__meta .icon { color: var(--muted); }
+  .ecard__desc { padding: 12px 22px 0; font-size: 13.5px; white-space: pre-wrap; }
+  .ecard__seats { font-weight: 700; color: var(--accent-deep); }
+  .ecard__seats .icon { color: var(--accent-deep) !important; }
+  .ecard .mcard__foot { margin-top: 16px; padding-left: 22px; padding-right: 22px; }
+  .ecard .mcard__foot .btn { flex: 0 1 auto; }
+  .ecard .mcard__foot { justify-content: flex-end; }
+  .ecard .comments { padding-left: 22px; padding-right: 22px; }
+  .ecard--closed .ecard__date, .ecard--closed .ecard__title { color: var(--muted); }
+  .joined { display: flex; gap: 8px; align-items: center; color: var(--accent-deep); font-size: 13px; font-weight: 700; margin: 12px 22px 0; }
+  @media (max-width: 600px) {
+    .ecard { grid-template-columns: 1fr; }
+    .ecard__date { flex-direction: row; flex-wrap: wrap; gap: 4px 12px; padding: 12px 18px; justify-content: flex-start; border-right: none; border-bottom: 1px solid var(--line); align-items: baseline; }
+    .ecard__type { margin-bottom: 0; }
+    .ecard__md { font-size: 20px; }
+    .ecard__time { margin-top: 0; }
+    .ecard__title, .ecard__meta, .ecard__desc { padding-left: 18px; padding-right: 18px; }
+    .ecard__meta { grid-template-columns: 1fr; }
+    .ecard .mcard__foot, .ecard .comments { padding-left: 18px; padding-right: 18px; }
+    .joined { margin-left: 18px; margin-right: 18px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page-hero"><div class="page-hero__inner">
+  <div class="page-hero__kicker">EVENTS</div>
+  <div class="page-hero__title">交流会・商談会</div>
+  <div class="page-hero__lead">リアル・オンラインで会員同士が直接つながれるイベントです。気になるイベントに申し込んでください。</div>
+</div></div>
+
+<div class="container">
+
+  <div class="screen active" id="screen-loading">
+    <div class="state-card"><div class="spinner"></div><div class="state-card__title">読み込み中です…</div></div>
+  </div>
+
+  <div class="screen" id="screen-error">
+    <div class="state-card"><div class="state-card__icon"><span data-icon="alert"></span></div><div class="state-card__title">ページを表示できませんでした</div>
+      <div class="state-card__body">会員専用ページです。登録時にお送りしたメールのリンク（マイページ）から開いてください。</div></div>
+  </div>
+
+  <div class="screen" id="screen-list">
+    <div id="ad-banner" class="adbanner"></div>
+    <div class="event-list" id="event-list"></div>
+  </div>
+
+</div>
+
+<!-- 申込確認 -->
+<div class="modal" id="join-modal"><div class="modal__box">
+  <div class="modal__title">このイベントに申し込みますか？</div>
+  <div class="modal__lead" id="join-title"></div>
+  <div class="note" style="margin-bottom:16px">申込後、運営から会場の詳細・お支払い方法などをメールでご案内します。キャンセルをご希望の場合は運営までご連絡ください。</div>
+  <div class="btn-row">
+    <button type="button" class="btn btn--ghost" id="join-cancel">戻る</button>
+    <button type="button" class="btn btn--primary" id="join-send">申し込む</button>
+  </div>
+</div></div>
+
+<script src="common.js"></script>
+<script>
+renderHeader("events");
+
+let events = [];
+let joiningId = "";
+
+function parseDate(str) {
+  const m = String(str || "").match(/(\d{4})[-\/年](\d{1,2})[-\/月](\d{1,2})/);
+  return m ? { y: m[1], m: +m[2], d: +m[3], rest: String(str).replace(m[0], "").replace(/^日?\s*/, "") } : null;
+}
+
+// イベントの内容は運営が管理画面で作成・編集します。会員ができるのは「申し込む」だけです
+function renderEventCard(e) {
+  const closed = e.status === "終了";
+  const cap = parseInt(e.capacity, 10);
+  const left = cap ? cap - e.entryCount : null;
+  const full = left !== null && left <= 0;
+  const d = parseDate(e.date);
+  let action;
+  if (e.joined) action = `<button type="button" class="btn btn--ghost btn--small" disabled>${icon("check")}申込済み</button>`;
+  else if (closed) action = `<button type="button" class="btn btn--ghost btn--small" disabled>受付終了</button>`;
+  else if (full) action = `<button type="button" class="btn btn--ghost btn--small" disabled>満席</button>`;
+  else action = `<button type="button" class="btn btn--primary btn--small" data-join>申し込む</button>`;
+  return `
+    <div class="ecard ${closed ? "ecard--closed" : ""}" data-event="${esc(e.id)}">
+      <div class="ecard__date">
+        <span class="ecard__type">${esc(e.type || "イベント")}</span>
+        ${d ? `<div class="ecard__year">${d.y}</div><div class="ecard__md">${d.m}.${String(d.d).padStart(2, "0")}</div><div class="ecard__time">${esc(d.rest)}</div>` : `<div class="ecard__time">${esc(e.date)}</div>`}
+      </div>
+      <div class="ecard__main">
+        <div class="ecard__title">${esc(e.title)}</div>
+        <div class="ecard__meta">
+          <div>${icon("clock")}${esc(e.date)}</div>
+          <div>${icon("pin")}${esc(e.place)}</div>
+          <div>${icon("yen")}${esc(e.fee || "無料")}</div>
+          ${cap ? `<div class="ecard__seats">${icon("users")}定員${cap}名（${full ? "満席" : "残り" + left + "席"}）</div>` : ""}
+        </div>
+        ${e.description ? `<div class="ecard__desc">${esc(e.description)}</div>` : ""}
+        ${e.joined ? `<div class="joined">${icon("check")}お申し込み済みです。詳細は運営からご連絡します。</div>` : ""}
+        <div class="mcard__foot">${action}</div>
+      </div>
+    </div>`;
+}
+
+function render() {
+  const open = events.filter(e => e.status !== "終了");
+  const closed = events.filter(e => e.status === "終了");
+  document.getElementById("event-list").innerHTML = events.length
+    ? [...open, ...closed].map(renderEventCard).join("")
+    : `<div class="state-card"><div class="state-card__icon">${icon("calendar")}</div><div class="state-card__title">現在予定されているイベントはありません</div><div class="state-card__body">開催が決まり次第こちらに掲載します。</div></div>`;
+}
+
+const modal = document.getElementById("join-modal");
+document.getElementById("event-list").addEventListener("click", ev => {
+  const card = ev.target.closest("[data-event]");
+  if (!card || !ev.target.closest("[data-join]")) return;
+  joiningId = card.dataset.event;
+  document.getElementById("join-title").textContent = events.find(e => e.id === joiningId).title;
+  modal.classList.add("open");
+});
+modal.addEventListener("click", e => { if (e.target === modal) modal.classList.remove("open"); });
+document.getElementById("join-cancel").addEventListener("click", () => modal.classList.remove("open"));
+document.getElementById("join-send").addEventListener("click", async () => {
+  const btn = document.getElementById("join-send");
+  btn.disabled = true;
+  try {
+    await apiPost("joinEvent", { token: TOKEN, eventId: joiningId });
+    modal.classList.remove("open");
+    await load();
+    toast("お申し込みを受け付けました");
+  } catch (e) {
+    toast("申し込めませんでした。時間をおいてお試しください");
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+async function load() {
+  if (!TOKEN) { showOnly("screen-error"); return; }
+  try {
+    const [data, ads] = await Promise.all([apiGet("listEvents", { token: TOKEN }), loadAds("交流会")]);
+    if (!Array.isArray(data)) { showOnly("screen-error"); return; }
+    events = data;
+    document.getElementById("ad-banner").innerHTML = ads.length ? renderAdCard(ads[Math.floor(Math.random() * ads.length)]) : "";
+    render();
+    document.getElementById("screen-list").classList.contains("active") || showOnly("screen-list");
+  } catch (e) {
+    showOnly("screen-error");
+  }
+}
+load();
+</script>
+</body>
+</html>

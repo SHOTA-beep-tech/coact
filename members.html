@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>COACT | 会員を探す</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=Montserrat:wght@700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="common.css">
+</head>
+<body>
+
+<div class="page-hero"><div class="page-hero__inner">
+  <div class="page-hero__kicker">MEMBERS</div>
+  <div class="page-hero__title">業種別に会員を探す</div>
+  <div class="page-hero__lead">気になる方には匿名でコメントしたり、「繋がりたい」から運営にご紹介を依頼できます。</div>
+</div></div>
+
+<div class="container">
+
+  <div class="screen active" id="screen-loading">
+    <div class="state-card"><div class="spinner"></div><div class="state-card__title">読み込み中です…</div></div>
+  </div>
+
+  <div class="screen" id="screen-error">
+    <div class="state-card"><div class="state-card__icon"><span data-icon="alert"></span></div><div class="state-card__title">ページを表示できませんでした</div>
+      <div class="state-card__body">会員専用ページです。登録時にお送りしたメールのリンク（マイページ）から開いてください。</div></div>
+  </div>
+
+  <div class="screen" id="screen-list">
+    <div class="panel">
+      <div class="chips" id="industry-chips"></div>
+      <div class="filters">
+        <select id="stance-filter">
+          <option value="">代理店：全て</option>
+          <option value="recruit">代理店を募集している</option>
+          <option value="seek">代理店になりたい</option>
+        </select>
+        <input type="text" id="keyword" placeholder="キーワード（名前・会社・事業内容・エリアなど）">
+      </div>
+      <div class="result-count" id="result-count"></div>
+    </div>
+    <div class="grid" id="grid"></div>
+  </div>
+
+</div>
+
+<script src="common.js"></script>
+<script>
+renderHeader("members");
+
+let members = [];
+let ads = [];
+let industry = "";
+
+
+function renderChips() {
+  const counts = {};
+  members.forEach(m => counts[m.industry] = (counts[m.industry] || 0) + 1);
+  const chip = (value, label, n) =>
+    `<button type="button" class="chip ${industry === value ? "active" : ""}" data-industry="${esc(value)}">${esc(label)}<span class="chip__count">${n}</span></button>`;
+  document.getElementById("industry-chips").innerHTML =
+    chip("", "すべて", members.length) +
+    INDUSTRIES.filter(i => counts[i]).map(i => chip(i, i, counts[i])).join("");
+}
+
+function filtered() {
+  const stance = document.getElementById("stance-filter").value;
+  const kw = document.getElementById("keyword").value.trim().toLowerCase();
+  return members.filter(m => {
+    if (industry && m.industry !== industry) return false;
+    if (stance === "recruit" && !["代理店を募集している", "どちらも"].includes(m.agencyStance)) return false;
+    if (stance === "seek" && !AGENT_SEEKER_STANCES.includes(m.agencyStance)) return false;
+    if (kw && ![m.name, m.company, m.title, m.area, m.business, m.tagline, m.wantAsPartner, m.wantAsCustomer].join(" ").toLowerCase().includes(kw)) return false;
+    return true;
+  });
+}
+
+function renderGrid() {
+  renderChips();
+  const list = filtered();
+  document.getElementById("result-count").innerHTML = `<b>${list.length}</b>名の会員が見つかりました`;
+  document.getElementById("grid").innerHTML = list.length
+    ? interleaveAds(list.map(m => renderMemberCard(m)), ads)
+    : `<div class="empty" style="grid-column:1/-1">条件に合う会員はまだいません。</div>`;
+}
+
+document.getElementById("industry-chips").addEventListener("click", ev => {
+  const chip = ev.target.closest("[data-industry]");
+  if (!chip) return;
+  industry = chip.dataset.industry;
+  renderGrid();
+});
+document.getElementById("stance-filter").addEventListener("change", renderGrid);
+document.getElementById("keyword").addEventListener("input", renderGrid);
+
+bindComments((type, id, list) => {
+  const m = members.find(x => x.publicId === id);
+  if (m) m.comments = list;
+});
+bindCardActions(document.getElementById("grid"), card => {
+  const m = members.find(x => x.publicId === card.dataset.member);
+  return m && { targetType: "member", targetId: m.publicId, targetName: m.name };
+});
+
+async function load() {
+  if (!TOKEN) { showOnly("screen-error"); return; }
+  try {
+    const [data, adList] = await Promise.all([apiGet("listMembers", { token: TOKEN }), loadAds("会員一覧")]);
+    if (!Array.isArray(data)) { showOnly("screen-error"); return; }
+    members = data;
+    ads = adList;
+    const preset = new URLSearchParams(location.search).get("industry");
+    if (preset) industry = preset;
+    renderGrid();
+    showOnly("screen-list");
+  } catch (e) {
+    showOnly("screen-error");
+  }
+}
+load();
+</script>
+</body>
+</html>

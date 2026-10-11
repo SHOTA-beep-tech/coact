@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>COACT | 広告掲載のご案内</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=Montserrat:wght@700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="common.css">
+<style>
+  .plans { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; margin-bottom: 20px; box-shadow: var(--shadow); }
+  @media (max-width: 680px) { .plans { grid-template-columns: 1fr; } }
+  .plan { background: var(--surface); padding: 24px 20px; }
+  .plan__icon { width: 40px; height: 40px; border-radius: 50%; background: var(--primary-soft); color: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 18px; margin-bottom: 10px; }
+  .plan__title { font-size: 15px; font-weight: 700; color: var(--ink); margin-bottom: 4px; }
+  .plan__text { font-size: 13px; }
+  .sample { max-width: 380px; margin: 0 auto; }
+</style>
+</head>
+<body>
+
+<div class="page-hero"><div class="page-hero__inner">
+  <div class="page-hero__kicker">ADVERTISING</div>
+  <div class="page-hero__title">COACTに広告を掲載しませんか？</div>
+  <div class="page-hero__lead">さまざまな業種の経営者・個人事業主・会社員が集まるCOACT内に、あなたの商品・サービスを掲載できます。</div>
+</div></div>
+
+<div class="container container--narrow">
+
+  <div class="screen active" id="screen-form">
+    <div class="plans">
+      <div class="plan"><div class="plan__icon"><span data-icon="search"></span></div><div class="plan__title">会員一覧ページ</div><div class="plan__text">業種別の会員一覧の間にカード形式で表示されます。</div></div>
+      <div class="plan"><div class="plan__icon"><span data-icon="briefcase"></span></div><div class="plan__title">代理店ページ</div><div class="plan__text">代理店を探している会員の目に留まる位置に表示されます。</div></div>
+      <div class="plan"><div class="plan__icon"><span data-icon="calendar"></span></div><div class="plan__title">交流会ページ・協賛</div><div class="plan__text">イベントページへの掲載や、交流会・商談会の協賛も承ります。</div></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel__title">掲載イメージ</div>
+      <div class="panel__lead">画像・紹介文・リンクボタンを掲載できます。</div>
+      <div class="sample" id="sample"></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel__title">広告掲載のお申し込み・お問い合わせ</div>
+      <div class="panel__lead">料金・掲載期間は内容に応じてご案内します。お気軽にお問い合わせください。会員でない方もお申し込みいただけます。</div>
+      <form id="ad-form" novalidate>
+        <div class="field"><label class="field-label" for="a-company">会社名・屋号<span class="req">必須</span></label>
+          <input type="text" id="a-company" name="company" required></div>
+        <div class="field"><label class="field-label" for="a-name">ご担当者名<span class="req">必須</span></label>
+          <input type="text" id="a-name" name="name" required></div>
+        <div class="field"><label class="field-label" for="a-email">メールアドレス<span class="req">必須</span></label>
+          <input type="email" id="a-email" name="email" required></div>
+        <div class="field"><label class="field-label" for="a-phone">電話番号<span class="req">必須</span></label>
+          <input type="tel" id="a-phone" name="phone" required></div>
+        <div class="field"><label class="field-label" for="a-plan">ご希望の掲載場所<span class="req">必須</span></label>
+          <select id="a-plan" name="plan" required>
+            <option value="">選択してください</option>
+            <option>会員一覧ページ</option>
+            <option>代理店ページ</option>
+            <option>交流会ページ・イベント協賛</option>
+            <option>すべてのページ</option>
+            <option>まだ決めていない・相談したい</option>
+          </select></div>
+        <div class="field"><label class="field-label" for="a-msg">広告したい商品・サービス、ご要望<span class="req">必須</span></label>
+          <textarea id="a-msg" name="message" required></textarea></div>
+        <button type="submit" class="btn btn--primary btn--block" id="ad-submit">この内容で問い合わせる</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="screen" id="screen-thanks">
+    <div class="state-card">
+      <div class="state-card__icon state-card__icon--done"><span data-icon="check"></span></div>
+      <div class="state-card__title">お問い合わせありがとうございます</div>
+      <div class="state-card__body">内容を確認のうえ、担当より2〜3営業日以内にご連絡いたします。</div>
+    </div>
+  </div>
+
+</div>
+
+<script src="common.js"></script>
+<script>
+renderHeader("ads");
+
+document.getElementById("sample").innerHTML = renderAdCard({
+  advertiser: "株式会社サンプル",
+  title: "法人向けクラウド会計、初月無料キャンペーン中",
+  text: "COACT会員様限定で導入サポートを無料でご提供します。",
+  linkUrl: "https://example.com",
+  ctaLabel: "詳しく見る",
+});
+document.querySelector("#sample a").addEventListener("click", e => e.preventDefault());
+
+document.getElementById("ad-form").addEventListener("submit", async ev => {
+  ev.preventDefault();
+  const form = ev.target;
+  if (!form.checkValidity()) { form.reportValidity(); return; }
+  const btn = document.getElementById("ad-submit");
+  btn.disabled = true;
+  try {
+    await apiPost("adRequest", { token: TOKEN, ...Object.fromEntries(new FormData(form)) });
+  } catch (e) {
+    // no-cors のため失敗は検知できない
+  }
+  btn.disabled = false;
+  showOnly("screen-thanks");
+});
+</script>
+</body>
+</html>

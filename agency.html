@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>COACT | 代理店を探す・募集する</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=Montserrat:wght@700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="common.css">
+<style>
+  .pcard__title { font-size: 16.5px; font-weight: 700; color: var(--ink); line-height: 1.55; padding: 0 20px; margin-top: 10px; letter-spacing: .02em; }
+  .pcard__owner { font-size: 12px; color: var(--muted); padding: 4px 20px 0; }
+  .pcard__reward { margin: 14px 20px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 10px 0; display: flex; gap: 14px; align-items: baseline; }
+  .pcard__reward .mcard__label { color: var(--accent-deep); flex-shrink: 0; }
+  .pcard__reward .mcard__text { font-weight: 700; color: var(--ink); }
+  .pcard__status { padding: 18px 20px 0; display: flex; gap: 6px; flex-wrap: wrap; }
+  .tab-panel .panel .chips { margin-bottom: 12px; }
+  .intro-note + .chips { margin-top: 16px; }
+  .intro-note { display: flex; gap: 10px; font-size: 13px; color: var(--ink-soft); }
+  .intro-note .icon { color: var(--accent); margin-top: 4px; }
+</style>
+</head>
+<body>
+
+<div class="page-hero"><div class="page-hero__inner">
+  <div class="page-hero__kicker">AGENCY</div>
+  <div class="page-hero__title">代理店を探す・募集する</div>
+  <div class="page-hero__lead">自社の商材を広めてくれる代理店を募集したり、扱える商材を探したりできます。</div>
+</div></div>
+
+<div class="container">
+
+  <div class="screen active" id="screen-loading">
+    <div class="state-card"><div class="spinner"></div><div class="state-card__title">読み込み中です…</div></div>
+  </div>
+
+  <div class="screen" id="screen-error">
+    <div class="state-card"><div class="state-card__icon"><span data-icon="alert"></span></div><div class="state-card__title">ページを表示できませんでした</div>
+      <div class="state-card__body">会員専用ページです。登録時にお送りしたメールのリンク（マイページ）から開いてください。</div></div>
+  </div>
+
+  <div class="screen" id="screen-main">
+    <div class="tabs">
+      <button type="button" class="tab active" data-tab="posts">代理店募集を見る</button>
+      <button type="button" class="tab" data-tab="agents">代理店になりたい会員</button>
+      <button type="button" class="tab" data-tab="new">募集を出す</button>
+      <button type="button" class="tab" data-tab="mine">自分の募集</button>
+    </div>
+
+    <div id="ad-banner" class="adbanner"></div>
+
+    <!-- 代理店募集一覧 -->
+    <div class="tab-panel" id="tab-posts">
+      <div class="panel">
+        <div class="chips" id="post-chips"></div>
+        <input type="text" class="kw" id="post-kw" placeholder="キーワード（商材・エリア・報酬など）">
+      </div>
+      <div class="grid" id="post-grid"></div>
+    </div>
+
+    <!-- 代理店になりたい会員 -->
+    <div class="tab-panel" id="tab-agents" hidden>
+      <div class="panel">
+        <div class="intro-note"><span data-icon="users"></span><span>「代理店として扱える商材を探している」と登録している会員です。あなたの商材を扱ってくれる方を探せます。</span></div>
+        <div class="chips" id="agent-chips"></div>
+        <input type="text" class="kw" id="agent-kw" placeholder="キーワード（名前・エリア・事業内容など）">
+      </div>
+      <div class="grid" id="agent-grid"></div>
+    </div>
+
+    <!-- 募集を出す -->
+    <div class="tab-panel" id="tab-new" hidden>
+      <div class="panel">
+        <div class="panel__title">代理店募集を出す</div>
+        <div class="panel__lead">運営が内容を確認したうえで掲載します。応募・問い合わせは運営を通じてご紹介します。</div>
+        <form id="post-form" novalidate>
+          <div class="field"><label class="field-label" for="p-title">募集タイトル<span class="req">必須</span></label>
+            <input type="text" id="p-title" name="title" required maxlength="60" placeholder="例：ホームページ制作の紹介代理店募集"></div>
+          <div class="field"><label class="field-label" for="p-industry">商材の業種<span class="req">必須</span></label>
+            <select id="p-industry" name="industry" required><option value="">選択してください</option></select></div>
+          <div class="field"><label class="field-label" for="p-product">商品・サービス内容<span class="req">必須</span></label>
+            <textarea id="p-product" name="product" required placeholder="例：中小企業向けホームページ制作（30万円〜）"></textarea></div>
+          <div class="field"><label class="field-label" for="p-reward">報酬・条件<span class="req">必須</span></label>
+            <input type="text" id="p-reward" name="reward" required placeholder="例：成約1件につき売上の20%"></div>
+          <div class="field"><label class="field-label" for="p-area">募集エリア<span class="req">必須</span></label>
+            <input type="text" id="p-area" name="area" required maxlength="100" placeholder="例：関西エリア（大阪・兵庫・京都）／全国・オンライン可">
+            <div class="field-help">あなたの活動エリアはプロフィールから自動で表示されます</div></div>
+          <div class="field"><label class="field-label" for="p-req">求める代理店像<span class="opt">任意</span></label>
+            <input type="text" id="p-req" name="requirements" placeholder="例：経営者とのつながりがある方"></div>
+          <div class="field"><label class="field-label" for="p-desc">詳細・アピール<span class="opt">任意</span></label>
+            <textarea id="p-desc" name="description"></textarea></div>
+          <button type="submit" class="btn btn--primary btn--block" id="post-submit">募集を申請する</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- 自分の募集 -->
+    <div class="tab-panel" id="tab-mine" hidden>
+      <div class="grid" id="mine-grid"></div>
+    </div>
+  </div>
+
+</div>
+
+<script src="common.js"></script>
+<script>
+renderHeader("agency");
+
+let posts = [];
+let agents = [];
+let postIndustry = "";
+let agentIndustry = "";
+
+INDUSTRIES.forEach(i => document.getElementById("p-industry").insertAdjacentHTML("beforeend", `<option>${esc(i)}</option>`));
+
+// ---- タブ ----
+function openTab(name) {
+  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.tab === name));
+  document.querySelectorAll(".tab-panel").forEach(p => p.hidden = p.id !== "tab-" + name);
+}
+document.querySelector(".tabs").addEventListener("click", ev => {
+  const t = ev.target.closest("[data-tab]");
+  if (t) openTab(t.dataset.tab);
+});
+
+// ---- 業種チップ ----
+function chipsHtml(list, current) {
+  const counts = {};
+  list.forEach(x => counts[x.industry] = (counts[x.industry] || 0) + 1);
+  const chip = (v, label, n) => `<button type="button" class="chip ${current === v ? "active" : ""}" data-industry="${esc(v)}">${esc(label)}<span class="chip__count">${n}</span></button>`;
+  return chip("", "すべて", list.length) + INDUSTRIES.filter(i => counts[i]).map(i => chip(i, i, counts[i])).join("");
+}
+
+// ---- 募集カード ----
+const STATUS_BADGE = { "承認待ち": "badge--warn", "公開": "", "募集終了": "badge--gray", "非公開": "badge--gray" };
+
+function renderPostCard(p, mine = false) {
+  const row = (label, v) => v ? `<div class="mcard__row"><div class="mcard__label">${label}</div><div class="mcard__text">${esc(v)}</div></div>` : "";
+  return `
+    <div class="mcard" data-post="${esc(p.id)}">
+      <div class="pcard__status">
+        <span class="badge">${esc(p.industry)}</span>
+        ${mine ? `<span class="badge ${STATUS_BADGE[p.status] || ""}">${esc(p.status)}</span>` : ""}
+      </div>
+      <div class="pcard__title">${esc(p.title)}</div>
+      <div class="pcard__owner">募集者：${esc([p.ownerCompany, p.ownerName].filter(Boolean).join("　"))}</div>
+      <div class="pcard__reward"><div class="mcard__label">報酬・条件</div><div class="mcard__text">${esc(p.reward)}</div></div>
+      <div class="mcard__body">
+        ${row("募集エリア", p.area)}
+        ${row("募集者の活動エリア", p.ownerArea)}
+        ${row("商品・サービス内容", p.product)}
+        <div class="mcard__details">
+          ${row("求める代理店像", p.requirements)}
+          ${row("詳細・アピール", p.description)}
+        </div>
+        <button type="button" class="link-btn" data-toggle-details>詳細を見る</button>
+      </div>
+      <div class="mcard__foot">
+        <button type="button" class="btn btn--ghost btn--small" data-toggle-comments>${commentLabel((p.comments || []).length)}</button>
+        ${mine
+          ? (p.status === "公開" || p.status === "承認待ち" ? `<button type="button" class="btn btn--ghost btn--small" data-close-post>募集を終了する</button>` : "")
+          : `<button type="button" class="btn btn--primary btn--small" data-intro>${icon("link")}代理店に応募する</button>`}
+      </div>
+      ${commentsBlockHtml("agency", p.id, p.comments || [])}
+    </div>`;
+}
+
+function render() {
+  const others = posts.filter(p => !p.isMine && p.status === "公開");
+  document.getElementById("post-chips").innerHTML = chipsHtml(others, postIndustry);
+  const postKw = document.getElementById("post-kw").value.trim().toLowerCase();
+  const shown = others.filter(p => (!postIndustry || p.industry === postIndustry) &&
+    (!postKw || [p.title, p.product, p.reward, p.area, p.ownerArea, p.ownerName, p.ownerCompany, p.requirements, p.description].join(" ").toLowerCase().includes(postKw)));
+  document.getElementById("post-grid").innerHTML = shown.length
+    ? shown.map(p => renderPostCard(p)).join("")
+    : `<div class="empty" style="grid-column:1/-1">現在掲載中の代理店募集はありません。</div>`;
+
+  document.getElementById("agent-chips").innerHTML = chipsHtml(agents, agentIndustry);
+  const agentKw = document.getElementById("agent-kw").value.trim().toLowerCase();
+  const shownAgents = agents.filter(m => (!agentIndustry || m.industry === agentIndustry) &&
+    (!agentKw || [m.name, m.company, m.title, m.area, m.business, m.tagline, m.wantAsPartner].join(" ").toLowerCase().includes(agentKw)));
+  document.getElementById("agent-grid").innerHTML = shownAgents.length
+    ? shownAgents.map(m => renderMemberCard(m)).join("")
+    : `<div class="empty" style="grid-column:1/-1">該当する会員はまだいません。</div>`;
+
+  const mine = posts.filter(p => p.isMine);
+  document.getElementById("mine-grid").innerHTML = mine.length
+    ? mine.map(p => renderPostCard(p, true)).join("")
+    : `<div class="empty" style="grid-column:1/-1">まだ募集を出していません。「募集を出す」タブから申請できます。</div>`;
+}
+
+["post-kw", "agent-kw"].forEach(id => document.getElementById(id).addEventListener("input", render));
+document.getElementById("post-chips").addEventListener("click", ev => {
+  const c = ev.target.closest("[data-industry]"); if (!c) return;
+  postIndustry = c.dataset.industry; render();
+});
+document.getElementById("agent-chips").addEventListener("click", ev => {
+  const c = ev.target.closest("[data-industry]"); if (!c) return;
+  agentIndustry = c.dataset.industry; render();
+});
+
+bindComments((type, id, list) => {
+  const target = type === "agency" ? posts.find(p => p.id === id) : agents.find(m => m.publicId === id);
+  if (target) target.comments = list;
+});
+bindCardActions(document.getElementById("screen-main"), card => {
+  if (card.dataset.post) {
+    const p = posts.find(x => x.id === card.dataset.post);
+    return p && { targetType: "agency", targetId: p.id, targetName: p.ownerName };
+  }
+  const m = agents.find(x => x.publicId === card.dataset.member);
+  return m && { targetType: "member", targetId: m.publicId, targetName: m.name };
+});
+
+// ---- 自分の募集を終了 ----
+document.getElementById("mine-grid").addEventListener("click", async ev => {
+  const btn = ev.target.closest("[data-close-post]");
+  if (!btn) return;
+  if (!confirm("この募集を終了しますか？（一覧に表示されなくなります）")) return;
+  btn.disabled = true;
+  await apiPost("closeAgencyPost", { token: TOKEN, id: btn.closest("[data-post]").dataset.post });
+  await load();
+  openTab("mine");
+  toast("募集を終了しました");
+});
+
+// ---- 募集を出す ----
+document.getElementById("post-form").addEventListener("submit", async ev => {
+  ev.preventDefault();
+  const form = ev.target;
+  if (!form.checkValidity()) { form.reportValidity(); return; }
+  const btn = document.getElementById("post-submit");
+  btn.disabled = true;
+  try {
+    const data = Object.fromEntries(new FormData(form));
+    await apiPost("addAgencyPost", { token: TOKEN, ...data });
+    form.reset();
+    await load();
+    openTab("mine");
+    toast("申請しました。運営の確認後に掲載されます");
+  } catch (e) {
+    toast("送信できませんでした。時間をおいてお試しください");
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+async function load() {
+  if (!TOKEN) { showOnly("screen-error"); return; }
+  try {
+    const [data, ads] = await Promise.all([apiGet("listAgency", { token: TOKEN }), loadAds("代理店")]);
+    if (!data || data.error) { showOnly("screen-error"); return; }
+    posts = data.posts || [];
+    agents = data.agents || [];
+    document.getElementById("ad-banner").innerHTML = ads.length ? renderAdCard(ads[Math.floor(Math.random() * ads.length)]) : "";
+    render();
+    document.getElementById("screen-main").classList.contains("active") || showOnly("screen-main");
+  } catch (e) {
+    showOnly("screen-error");
+  }
+}
+load();
+</script>
+</body>
+</html>

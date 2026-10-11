@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>COACT | 運営管理画面</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=Montserrat:wght@700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="common.css">
+<style>
+  .page-hero { background-color: var(--primary-deep); }
+  .tabs { flex-wrap: wrap; }
+  .tab { flex: 0 1 auto; }
+  .tab__count { display: inline-block; min-width: 20px; font-size: 11px; background: var(--danger); color: #fff; border-radius: 9px; padding: 0 6px; margin-left: 6px; text-align: center; font-family: "Montserrat", sans-serif; }
+  .toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+  .toolbar select, .toolbar input { width: auto; flex: 1; min-width: 140px; }
+  .item { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); margin-bottom: 8px; overflow: hidden; box-shadow: var(--shadow); }
+  .item--pending { border-left: 3px solid #d9a81e; }
+  .item__head { display: flex; gap: 12px; align-items: center; padding: 12px 14px; cursor: pointer; }
+  .item__main { flex: 1; min-width: 0; }
+  .item__title { font-size: 15px; font-weight: 700; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .item__sub { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .item__actions { display: flex; gap: 6px; flex-shrink: 0; }
+  .item__body { display: none; border-top: 1px solid var(--line); padding: 16px 14px; background: #fbfcfe; }
+  .item.open .item__body { display: block; }
+  .item__body .field { margin-bottom: 12px; }
+  .item__body textarea { min-height: 70px; }
+  .entries { font-size: 13px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 10px 12px; margin-bottom: 12px; }
+  .entries li { margin-left: 18px; }
+  .info { font-size: 13px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 10px 12px; margin-bottom: 12px; white-space: pre-wrap; }
+  @media (max-width: 560px) { .item__head { flex-wrap: wrap; } .item__actions { width: 100%; } .item__actions .btn { flex: 1; } }
+</style>
+</head>
+<body>
+
+<div class="page-hero"><div class="page-hero__inner">
+  <div class="page-hero__kicker">ADMIN</div>
+  <div class="page-hero__title">COACT 運営管理画面</div>
+  <div class="page-hero__lead">会員の承認、代理店募集・交流会・広告・コメントの管理ができます。</div>
+</div></div>
+
+<div class="container">
+
+  <div class="screen active" id="screen-login">
+    <div class="panel" style="max-width:420px;margin:0 auto">
+      <div class="panel__title">ログイン</div>
+      <div class="panel__lead">運営スタッフ共通の管理パスワードを入力してください。</div>
+      <form id="login-form">
+        <div class="field"><input type="password" id="password" placeholder="管理パスワード" required autocomplete="current-password"></div>
+        <button type="submit" class="btn btn--primary btn--block">ログイン</button>
+        <div class="note" id="login-error" style="color:var(--accent-deep);margin-top:8px"></div>
+      </form>
+    </div>
+  </div>
+
+  <div class="screen" id="screen-main">
+    <div class="tabs" id="tabs"></div>
+    <div class="toolbar">
+      <select id="status-filter"></select>
+      <input type="text" id="search" placeholder="検索">
+      <button type="button" class="btn btn--primary btn--small" id="new-btn" hidden><span data-icon="plus"></span>新規作成</button>
+      <button type="button" class="btn btn--ghost btn--small" id="reload-btn">更新</button>
+    </div>
+    <div id="list"></div>
+  </div>
+
+</div>
+
+<script src="common.js"></script>
+<script>
+renderHeader("");
+
+const sel = (opts) => ({ type: "select", options: opts });
+const TABS = [
+  { key: "Members", label: "会員", idKey: "token", statuses: ["承認待ち", "公開", "非公開"], pending: "承認待ち", approve: "公開",
+    title: o => `${o.name}（${o.company || "-"}）`, sub: o => [o.industry, o.area, o.email, o.phone].filter(Boolean).join("・"),
+    fields: [
+      ["name", "お名前"], ["company", "会社名・屋号"], ["title", "役職・肩書き"],
+      ["industry", "業種", sel(INDUSTRIES)], ["area", "活動エリア"],
+      ["business", "事業内容・お仕事内容", "textarea"], ["vision", "ビジョン", "textarea"],
+      ["wantAsCustomer", "お客様として繋がりたい人", "textarea"], ["wantAsPartner", "協業・提携として繋がりたい人", "textarea"],
+      ["connectedIndustries", "つながりのある業種"], ["agencyStance", "代理店について", sel(AGENCY_STANCES)],
+      ["tagline", "ひとこと"], ["photoUrl", "写真URL"],
+      ["email", "メールアドレス"], ["phone", "電話番号"], ["lineUrl", "LINE友だち追加URL"], ["lineQrUrl", "LINE QR画像URL"],
+    ],
+    info: o => `マイページURL：${location.origin}${location.pathname.replace(/admin\.html$/, "")}mypage.html?token=${o.token}` },
+  { key: "AgencyPosts", label: "代理店募集", statuses: ["承認待ち", "公開", "募集終了", "非公開"], pending: "承認待ち", approve: "公開",
+    title: o => o.title, sub: o => `${o.ownerName}（${o.ownerCompany || "-"}）・${o.industry}`,
+    fields: [["title", "募集タイトル"], ["industry", "業種", sel(INDUSTRIES)], ["product", "商品・サービス内容", "textarea"], ["reward", "報酬・条件"],
+      ["area", "募集エリア"], ["requirements", "求める代理店像"], ["description", "詳細・アピール", "textarea"]] },
+  { key: "Events", label: "交流会・商談会", statuses: ["公開", "終了", "非公開"], creatable: true, defaultStatus: "非公開",
+    title: o => o.title || "(無題)", sub: o => `${o.type}・${o.date}・申込${entriesOf(o.id).length}名${o.capacity ? "／定員" + o.capacity : ""}`,
+    fields: [["type", "種類", sel(["交流会", "商談会", "セミナー", "その他"])], ["title", "タイトル"], ["date", "日時（例：2026-11-14 19:00〜21:00）"],
+      ["place", "場所"], ["capacity", "定員（数字。空欄なら無制限）"], ["fee", "参加費"], ["description", "内容", "textarea"]] },
+  { key: "Ads", label: "広告", statuses: ["掲載中", "停止"], creatable: true, defaultStatus: "停止",
+    title: o => o.title || "(無題)", sub: o => `${o.advertiser}・掲載場所：${o.placement}`,
+    fields: [["advertiser", "広告主名"], ["title", "見出し"], ["text", "紹介文", "textarea"], ["placement", "掲載場所", sel(["すべて", "会員一覧", "代理店", "交流会"])],
+      ["linkUrl", "リンク先URL"], ["ctaLabel", "ボタンの文言（例：詳しく見る）"], ["imageUrl", "画像URL（下で画像を選ぶと自動で入ります）"]], image: true },
+  { key: "AdRequests", label: "広告の申込", statuses: ["未対応", "対応中", "完了"], pending: "未対応",
+    title: o => `${o.company}（${o.name}）`, sub: o => `${o.plan}・${o.email}・${o.phone}`,
+    fields: [], info: o => `会社名：${o.company}\n担当者：${o.name}\nメール：${o.email}\n電話：${o.phone}\n希望の掲載場所：${o.plan}\n\n${o.message}` },
+  { key: "Intros", label: "紹介依頼", statuses: ["未対応", "対応済"], pending: "未対応",
+    title: o => `${o.fromName} → ${o.targetName}`, sub: o => `${fmtDate(o.timestamp)}・${o.message || "(メッセージなし)"}`,
+    fields: [], info: o => introInfo(o) },
+  { key: "Comments", label: "コメント", statuses: ["公開", "非公開"],
+    title: o => o.body, sub: o => `投稿者：${o.authorName}（他の会員には匿名）・対象：${targetLabel(o.targetType, o.targetId)}・${fmtDate(o.timestamp)}`,
+    fields: [] },
+];
+
+let password = "";
+let db = {};
+let tab = TABS[0];
+
+try { password = sessionStorage.getItem("coactAdminPw") || ""; } catch (e) {}
+
+const entriesOf = id => (db.EventEntries || []).filter(x => x.eventId === id && x.status === "参加");
+const memberByToken = t => (db.Members || []).find(m => m.token === t);
+function targetLabel(type, id) {
+  if (type === "member") { const m = (db.Members || []).find(x => x.publicId === id); return "会員：" + (m ? m.name : id); }
+  if (type === "agency") { const p = (db.AgencyPosts || []).find(x => x.id === id); return "代理店募集：" + (p ? p.title : id); }
+  if (type === "event") { const e = (db.Events || []).find(x => x.id === id); return "イベント：" + (e ? e.title : id); }
+  return type + ":" + id;
+}
+function introInfo(o) {
+  const from = memberByToken(o.fromToken) || {};
+  let to = {};
+  if (o.targetType === "member") to = (db.Members || []).find(x => x.publicId === o.targetId) || {};
+  if (o.targetType === "agency") { const p = (db.AgencyPosts || []).find(x => x.id === o.targetId); to = (p && memberByToken(p.ownerToken)) || {}; }
+  return `【依頼した人】${from.name || o.fromName}（${from.company || "-"}）\n  ${from.email || ""} / ${from.phone || ""}\n` +
+    `【相手】${to.name || o.targetName}（${to.company || "-"}）\n  ${to.email || ""} / ${to.phone || ""}\n` +
+    `【対象】${targetLabel(o.targetType, o.targetId)}\n【メッセージ】${o.message || "(なし)"}`;
+}
+
+// ---- ログイン ----
+document.getElementById("login-form").addEventListener("submit", async ev => {
+  ev.preventDefault();
+  password = document.getElementById("password").value;
+  await load(true);
+});
+
+async function load(fromLogin) {
+  try {
+    const data = await apiGet("adminData", { password });
+    if (!data || data.error) {
+      document.getElementById("login-error").textContent = fromLogin ? "パスワードが違います" : "";
+      showOnly("screen-login");
+      return;
+    }
+    db = data;
+    try { sessionStorage.setItem("coactAdminPw", password); } catch (e) {}
+    renderTabs();
+    renderList();
+    if (!document.getElementById("screen-main").classList.contains("active")) showOnly("screen-main");
+  } catch (e) {
+    document.getElementById("login-error").textContent = "読み込みに失敗しました";
+    showOnly("screen-login");
+  }
+}
+
+// ---- タブ ----
+function renderTabs() {
+  document.getElementById("tabs").innerHTML = TABS.map(t => {
+    const n = t.pending ? (db[t.key] || []).filter(o => o.status === t.pending).length : 0;
+    return `<button type="button" class="tab ${t === tab ? "active" : ""}" data-key="${t.key}">${t.label}${n ? `<span class="tab__count">${n}</span>` : ""}</button>`;
+  }).join("");
+  const sf = document.getElementById("status-filter");
+  sf.innerHTML = `<option value="">ステータス：すべて</option>` + tab.statuses.map(s => `<option>${s}</option>`).join("");
+  document.getElementById("new-btn").hidden = !tab.creatable;
+}
+document.getElementById("tabs").addEventListener("click", ev => {
+  const b = ev.target.closest("[data-key]");
+  if (!b) return;
+  tab = TABS.find(t => t.key === b.dataset.key);
+  document.getElementById("search").value = "";
+  renderTabs();
+  renderList();
+});
+document.getElementById("status-filter").addEventListener("change", renderList);
+document.getElementById("search").addEventListener("input", renderList);
+document.getElementById("reload-btn").addEventListener("click", () => load());
+
+// ---- 一覧 ----
+const idOf = o => o[tab.idKey || "id"];
+
+function fieldHtml([key, label, type], value) {
+  const v = value == null ? "" : value;
+  let control;
+  if (type === "textarea") control = `<textarea name="${key}">${esc(v)}</textarea>`;
+  else if (type && type.type === "select") control = `<select name="${key}"><option value=""></option>${type.options.map(o => `<option ${o === v ? "selected" : ""}>${esc(o)}</option>`).join("")}</select>`;
+  else control = `<input type="text" name="${key}" value="${esc(v)}">`;
+  return `<div class="field"><label class="field-label">${esc(label)}</label>${control}</div>`;
+}
+
+function itemHtml(o, isNew = false) {
+  const id = isNew ? "" : idOf(o);
+  const pending = tab.pending && o.status === tab.pending;
+  const entries = tab.key === "Events" && !isNew ? entriesOf(o.id) : [];
+  return `
+    <div class="item ${pending ? "item--pending" : ""} ${isNew ? "open" : ""}" data-id="${esc(id)}">
+      <div class="item__head" data-toggle>
+        <div class="item__main">
+          <div class="item__title">${esc(isNew ? "新規作成" : tab.title(o))}</div>
+          <div class="item__sub">${esc(isNew ? "" : tab.sub(o))}</div>
+        </div>
+        <div class="item__actions">
+          ${!isNew ? `<span class="badge ${pending ? "badge--warn" : ""}">${esc(o.status)}</span>` : ""}
+          ${pending && tab.approve ? `<button type="button" class="btn btn--primary btn--small" data-quick="${tab.approve}">承認する</button>` : ""}
+        </div>
+      </div>
+      <div class="item__body">
+        ${tab.info && !isNew ? `<div class="info">${esc(tab.info(o))}</div>` : ""}
+        ${tab.key === "Events" && !isNew ? `<div class="entries"><b>申込者（${entries.length}名）</b>${entries.length ? `<ul>${entries.map(x => { const m = memberByToken(x.memberToken) || {}; const contact = [m.email, m.phone].filter(Boolean).join(" / "); return `<li>${esc(x.memberName)}${contact ? "（" + esc(contact) + "）" : ""}${x.note ? "：" + esc(x.note) : ""} <button type="button" class="link-btn" style="padding:0;color:var(--danger)" data-cancel-entry="${esc(x.id)}">申込を取り消す</button></li>`; }).join("")}</ul>` : "<div>まだいません</div>"}</div>` : ""}
+        <form data-form>
+          ${fieldHtml(["status", "ステータス", sel(tab.statuses)], isNew ? tab.defaultStatus : o.status)}
+          ${tab.fields.map(f => fieldHtml(f, o[f[0]])).join("")}
+          ${tab.image ? `<div class="field"><label class="field-label">広告画像</label><input type="file" accept="image/*" data-image></div>` : ""}
+          <div class="btn-row">
+            ${isNew ? `<button type="button" class="btn btn--ghost btn--small" data-discard>やめる</button>` : ""}
+            <button type="submit" class="btn btn--primary btn--small">保存する</button>
+          </div>
+        </form>
+      </div>
+    </div>`;
+}
+
+function renderList() {
+  const status = document.getElementById("status-filter").value;
+  const kw = document.getElementById("search").value.trim().toLowerCase();
+  let rows = (db[tab.key] || []).slice().reverse(); // 新しい順
+  if (tab.pending) rows.sort((a, b) => (b.status === tab.pending) - (a.status === tab.pending));
+  rows = rows.filter(o => (!status || o.status === status) && (!kw || JSON.stringify(o).toLowerCase().includes(kw)));
+  document.getElementById("list").innerHTML = rows.length ? rows.map(o => itemHtml(o)).join("") : `<div class="empty">データがありません</div>`;
+}
+
+document.getElementById("new-btn").addEventListener("click", () => {
+  document.getElementById("list").insertAdjacentHTML("afterbegin", itemHtml({}, true));
+});
+
+async function save(id, fields, imageDataUrl) {
+  await apiPost("adminSave", { password, sheet: tab.key, id, data: JSON.stringify(fields), imageDataUrl });
+  await load();
+  toast("保存しました");
+}
+
+document.getElementById("list").addEventListener("click", async ev => {
+  const item = ev.target.closest(".item");
+  if (!item) return;
+  const quick = ev.target.closest("[data-quick]");
+  if (quick) {
+    ev.stopPropagation();
+    quick.disabled = true;
+    await save(item.dataset.id, { status: quick.dataset.quick });
+    return;
+  }
+  const cancelEntry = ev.target.closest("[data-cancel-entry]");
+  if (cancelEntry) {
+    // 会員からキャンセルの連絡があったときに運営が取り消す
+    if (!confirm("この申込を取り消しますか？")) return;
+    await apiPost("adminSave", { password, sheet: "EventEntries", id: cancelEntry.dataset.cancelEntry, data: JSON.stringify({ status: "キャンセル" }) });
+    await load();
+    toast("申込を取り消しました");
+    return;
+  }
+  if (ev.target.closest("[data-discard]")) { item.remove(); return; }
+  if (ev.target.closest("[data-toggle]")) item.classList.toggle("open");
+});
+
+document.getElementById("list").addEventListener("submit", async ev => {
+  ev.preventDefault();
+  const form = ev.target;
+  const item = form.closest(".item");
+  const fields = {};
+  form.querySelectorAll("[name]").forEach(el => fields[el.name] = el.value.trim());
+  const file = form.querySelector("[data-image]");
+  const imageDataUrl = file && file.files[0] ? await readImageAsDataUrl(file.files[0], 1200) : undefined;
+  form.querySelector("[type=submit]").disabled = true;
+  await save(item.dataset.id, fields, imageDataUrl);
+});
+
+if (password) load(); else showOnly("screen-login");
+</script>
+</body>
+</html>
