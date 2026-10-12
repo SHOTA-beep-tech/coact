@@ -177,7 +177,7 @@ function renderHeader(active) {
     ["events", "交流会・商談会", "events.html"],
     ["ads", "広告掲載", "ads.html"],
   ] : [
-    ["register", "無料会員登録", "index.html"],
+    ["register", "マイページ作成", "index.html"],
     ["ads", "広告掲載", "ads.html"],
   ];
   const nav = links.map(([key, label, href]) =>
