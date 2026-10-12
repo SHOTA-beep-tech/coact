@@ -28,7 +28,10 @@
   .ecard .mcard__foot { justify-content: flex-end; }
   .ecard .comments { padding-left: 22px; padding-right: 22px; }
   .ecard--closed .ecard__date, .ecard--closed .ecard__title { color: var(--muted); }
-  .joined { display: flex; gap: 8px; align-items: center; color: var(--accent-deep); font-size: 13px; font-weight: 700; margin: 12px 22px 0; }
+  .joined--pending { color: var(--warn) !important; }
+  .joined--declined { color: var(--muted) !important; }
+  .joined .icon { margin-top: 4px; }
+  .joined { display: flex; gap: 8px; align-items: flex-start; color: var(--accent-deep); font-size: 13px; font-weight: 700; margin: 12px 22px 0; }
   @media (max-width: 600px) {
     .ecard { grid-template-columns: 1fr; }
     .ecard__date { flex-direction: row; flex-wrap: wrap; gap: 4px 12px; padding: 12px 18px; justify-content: flex-start; border-right: none; border-bottom: 1px solid var(--line); align-items: baseline; }
@@ -72,7 +75,7 @@
 <div class="modal" id="join-modal"><div class="modal__box">
   <div class="modal__title">このイベントに申し込みますか？</div>
   <div class="modal__lead" id="join-title"></div>
-  <div class="note" style="margin-bottom:16px">申込後、運営から会場の詳細・お支払い方法などをメールでご案内します。キャンセルをご希望の場合は運営までご連絡ください。</div>
+  <div class="note" style="margin-bottom:16px">運営がお申し込み内容を確認し、参加が確定しましたらメールでお知らせします。会場の詳細・お支払い方法なども運営からご案内します。キャンセルをご希望の場合は運営までご連絡ください。</div>
   <div class="btn-row">
     <button type="button" class="btn btn--ghost" id="join-cancel">戻る</button>
     <button type="button" class="btn btn--primary" id="join-send">申し込む</button>
@@ -99,7 +102,13 @@ function renderEventCard(e) {
   const full = left !== null && left <= 0;
   const d = parseDate(e.date);
   let action;
-  if (e.joined) action = `<button type="button" class="btn btn--ghost btn--small" disabled>${icon("check")}申込済み</button>`;
+  const MY_STATUS = {
+    "承認待ち": { button: `${icon("clock")}承認待ち`, note: `${icon("clock")}お申し込みを受け付けました。運営が確認し、参加が確定しましたらメールでお知らせします。`, cls: "joined--pending" },
+    "参加確定": { button: `${icon("check")}参加確定`, note: `${icon("check")}ご参加が確定しています。会場の詳細などは運営からご連絡します。`, cls: "" },
+    "お断り": { button: "お申し込み不可", note: `${icon("alert")}今回はご参加をお受けできませんでした。詳しくは運営までお問い合わせください。`, cls: "joined--declined" },
+  };
+  const my = MY_STATUS[e.myStatus];
+  if (my) action = `<button type="button" class="btn btn--ghost btn--small" disabled>${my.button}</button>`;
   else if (closed) action = `<button type="button" class="btn btn--ghost btn--small" disabled>受付終了</button>`;
   else if (full) action = `<button type="button" class="btn btn--ghost btn--small" disabled>満席</button>`;
   else action = `<button type="button" class="btn btn--primary btn--small" data-join>申し込む</button>`;
@@ -118,7 +127,7 @@ function renderEventCard(e) {
           ${cap ? `<div class="ecard__seats">${icon("users")}定員${cap}名（${full ? "満席" : "残り" + left + "席"}）</div>` : ""}
         </div>
         ${e.description ? `<div class="ecard__desc">${esc(e.description)}</div>` : ""}
-        ${e.joined ? `<div class="joined">${icon("check")}お申し込み済みです。詳細は運営からご連絡します。</div>` : ""}
+        ${my ? `<div class="joined ${my.cls}">${my.note}</div>` : ""}
         <div class="mcard__foot">${action}</div>
       </div>
     </div>`;

@@ -90,9 +90,16 @@ const TABS = [
     fields: [["title", "募集タイトル"], ["industry", "業種", sel(INDUSTRIES)], ["product", "商品・サービス内容", "textarea"], ["reward", "報酬・条件"],
       ["area", "募集エリア"], ["requirements", "求める代理店像"], ["description", "詳細・アピール", "textarea"]] },
   { key: "Events", label: "交流会・商談会", statuses: ["公開", "終了", "非公開"], creatable: true, defaultStatus: "非公開",
-    title: o => o.title || "(無題)", sub: o => `${o.type}・${o.date}・申込${entriesOf(o.id).length}名${o.capacity ? "／定員" + o.capacity : ""}`,
+    title: o => o.title || "(無題)", sub: o => `${o.type}・${o.date}・参加確定${entriesOf(o.id, "参加確定").length}名／承認待ち${entriesOf(o.id, "承認待ち").length}名${o.capacity ? "／定員" + o.capacity : ""}`,
     fields: [["type", "種類", sel(["交流会", "商談会", "セミナー", "その他"])], ["title", "タイトル"], ["date", "日時（例：2026-11-14 19:00〜21:00）"],
       ["place", "場所"], ["capacity", "定員（数字。空欄なら無制限）"], ["fee", "参加費"], ["description", "内容", "textarea"]] },
+  { key: "EventEntries", label: "イベント申込", statuses: ["承認待ち", "参加確定", "お断り", "キャンセル"], pending: "承認待ち",
+    quicks: [["参加確定", "参加を確定する", "btn--primary"], ["お断り", "お断りする", "btn--ghost"]],
+    title: o => `${o.memberName} → ${eventTitle(o.eventId)}`,
+    sub: o => { const m = memberByToken(o.memberToken) || {}; return [`申込日 ${fmtDate(o.timestamp)}`, m.email, m.phone].filter(Boolean).join("・"); },
+    fields: [["note", "運営メモ", "textarea"]],
+    info: o => { const m = memberByToken(o.memberToken) || {}; const e = (db.Events || []).find(x => x.id === o.eventId) || {};
+      return `【イベント】${e.title || "(削除済み)"}\n  ${e.date || ""}／${e.place || ""}／参加費 ${e.fee || "無料"}\n【申込者】${o.memberName}（${m.company || "-"}）\n  ${[m.email, m.phone].filter(Boolean).join(" / ")}\n\n「参加確定」「お断り」にすると、本人にメールでお知らせします。`; } },
   { key: "Ads", label: "広告", statuses: ["掲載中", "停止"], creatable: true, defaultStatus: "停止",
     title: o => o.title || "(無題)", sub: o => `${o.advertiser}・掲載場所：${o.placement}`,
     fields: [["advertiser", "広告主名"], ["title", "見出し"], ["text", "紹介文", "textarea"], ["placement", "掲載場所", sel(["すべて", "会員一覧", "代理店", "交流会"])],
@@ -114,7 +121,9 @@ let tab = TABS[0];
 
 try { password = sessionStorage.getItem("coactAdminPw") || ""; } catch (e) {}
 
-const entriesOf = id => (db.EventEntries || []).filter(x => x.eventId === id && x.status === "参加");
+// イベントの申込一覧（status を指定しない場合は承認待ち＋参加確定）
+const entriesOf = (id, status) => (db.EventEntries || []).filter(x => x.eventId === id && (status ? x.status === status : ["承認待ち", "参加確定"].includes(x.status)));
+const eventTitle = id => ((db.Events || []).find(e => e.id === id) || {}).title || "(削除されたイベント)";
 const memberByToken = t => (db.Members || []).find(m => m.token === t);
 function targetLabel(type, id) {
   if (type === "member") { const m = (db.Members || []).find(x => x.publicId === id); return "会員：" + (m ? m.name : id); }
@@ -192,6 +201,22 @@ function fieldHtml([key, label, type], value) {
   return `<div class="field"><label class="field-label">${esc(label)}</label>${control}</div>`;
 }
 
+// イベントの中に表示する申込者一覧（ここからも確定・お断り・取り消しができる）
+function entriesHtml(entries) {
+  const actions = x => {
+    const btn = (status, label, color) => `<button type="button" class="link-btn" style="padding:0 0 0 10px;${color ? "color:" + color : ""}" data-entry-id="${esc(x.id)}" data-entry-status="${status}">${label}</button>`;
+    return x.status === "承認待ち"
+      ? btn("参加確定", "参加を確定する") + btn("お断り", "お断りする", "var(--muted)")
+      : btn("キャンセル", "申込を取り消す", "var(--danger)");
+  };
+  const rows = entries.map(x => {
+    const m = memberByToken(x.memberToken) || {};
+    const contact = [m.email, m.phone].filter(Boolean).join(" / ");
+    return `<li><span class="badge ${x.status === "承認待ち" ? "badge--warn" : "badge--accent"}">${esc(x.status)}</span> ${esc(x.memberName)}${contact ? "（" + esc(contact) + "）" : ""}${actions(x)}</li>`;
+  }).join("");
+  return `<div class="entries"><b>申込者（${entries.length}名）</b>${rows ? `<ul>${rows}</ul>` : "<div>まだいません</div>"}</div>`;
+}
+
 function itemHtml(o, isNew = false) {
   const id = isNew ? "" : idOf(o);
   const pending = tab.pending && o.status === tab.pending;
@@ -205,12 +230,13 @@ function itemHtml(o, isNew = false) {
         </div>
         <div class="item__actions">
           ${!isNew ? `<span class="badge ${pending ? "badge--warn" : ""}">${esc(o.status)}</span>` : ""}
-          ${pending && tab.approve ? `<button type="button" class="btn btn--primary btn--small" data-quick="${tab.approve}">承認する</button>` : ""}
+          ${pending ? (tab.quicks || (tab.approve ? [[tab.approve, "承認する", "btn--primary"]] : []))
+            .map(([status, label, cls]) => `<button type="button" class="btn ${cls} btn--small" data-quick="${status}">${label}</button>`).join("") : ""}
         </div>
       </div>
       <div class="item__body">
         ${tab.info && !isNew ? `<div class="info">${esc(tab.info(o))}</div>` : ""}
-        ${tab.key === "Events" && !isNew ? `<div class="entries"><b>申込者（${entries.length}名）</b>${entries.length ? `<ul>${entries.map(x => { const m = memberByToken(x.memberToken) || {}; const contact = [m.email, m.phone].filter(Boolean).join(" / "); return `<li>${esc(x.memberName)}${contact ? "（" + esc(contact) + "）" : ""}${x.note ? "：" + esc(x.note) : ""} <button type="button" class="link-btn" style="padding:0;color:var(--danger)" data-cancel-entry="${esc(x.id)}">申込を取り消す</button></li>`; }).join("")}</ul>` : "<div>まだいません</div>"}</div>` : ""}
+        ${tab.key === "Events" && !isNew ? entriesHtml(entries) : ""}
         <form data-form>
           ${fieldHtml(["status", "ステータス", sel(tab.statuses)], isNew ? tab.defaultStatus : o.status)}
           ${tab.fields.map(f => fieldHtml(f, o[f[0]])).join("")}
@@ -253,13 +279,19 @@ document.getElementById("list").addEventListener("click", async ev => {
     await save(item.dataset.id, { status: quick.dataset.quick });
     return;
   }
-  const cancelEntry = ev.target.closest("[data-cancel-entry]");
-  if (cancelEntry) {
-    // 会員からキャンセルの連絡があったときに運営が取り消す
-    if (!confirm("この申込を取り消しますか？")) return;
-    await apiPost("adminSave", { password, sheet: "EventEntries", id: cancelEntry.dataset.cancelEntry, data: JSON.stringify({ status: "キャンセル" }) });
+  const entryBtn = ev.target.closest("[data-entry-status]");
+  if (entryBtn) {
+    // イベントの中の申込者一覧から、確定・お断り・取り消しを行う
+    const status = entryBtn.dataset.entryStatus;
+    const messages = { "参加確定": "参加を確定しますか？（本人に確定メールが届きます）", "お断り": "この申込をお断りしますか？（本人にお知らせメールが届きます）", "キャンセル": "この申込を取り消しますか？" };
+    if (!confirm(messages[status])) return;
+    entryBtn.disabled = true;
+    await apiPost("adminSave", { password, sheet: "EventEntries", id: entryBtn.dataset.entryId, data: JSON.stringify({ status }) });
+    const openId = item.dataset.id;
     await load();
-    toast("申込を取り消しました");
+    const reopened = document.querySelector(`.item[data-id="${CSS.escape(openId)}"]`);
+    if (reopened) reopened.classList.add("open");
+    toast("更新しました");
     return;
   }
   if (ev.target.closest("[data-discard]")) { item.remove(); return; }

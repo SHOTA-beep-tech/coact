@@ -542,7 +542,7 @@ const Demo = (() => {
       { id: "e1", status: "公開", type: "交流会", title: "COACT 大阪 異業種交流会 vol.1", date: "2026-11-14 19:00〜21:00", place: "大阪・梅田（詳細は申込者にご連絡）", capacity: "30", fee: "3,000円（軽食付き）", description: "業種を問わずどなたでも参加いただける交流会です。名刺をお持ちください。" },
       { id: "e2", status: "公開", type: "商談会", title: "不動産×建設×保険 商談会", date: "2026-12-05 14:00〜17:00", place: "オンライン（Zoom）", capacity: "12", fee: "無料", description: "事前マッチングした相手と1対1で20分ずつ商談します。" },
     ],
-    entries: [{ id: "en1", eventId: "e1", memberToken: "t1", memberName: "佐藤 美咲", status: "参加", note: "" }, { id: "en2", eventId: "e1", memberToken: "t2", memberName: "田中 健太", status: "参加", note: "初参加です" }],
+    entries: [{ id: "en1", eventId: "e1", memberToken: "t1", memberName: "佐藤 美咲", status: "参加確定", note: "", timestamp: "2026-10-08" }, { id: "en2", eventId: "e1", memberToken: "t2", memberName: "田中 健太", status: "承認待ち", note: "", timestamp: "2026-10-10" }],
     ads: [
       { id: "a1", status: "掲載中", advertiser: "COACT運営事務局", title: "あなたの広告をここに掲載しませんか？", text: "会員一覧・代理店ページ・交流会ページに広告を掲載できます。", imageUrl: "", linkUrl: "ads.html", ctaLabel: "広告掲載について", placement: "すべて" },
     ],
@@ -589,8 +589,9 @@ const Demo = (() => {
           .map(m => ({ ...publicMember(m), comments: commentsFor("member", m.publicId) })),
       });
       case "listEvents": return wait(db.events.filter(e => e.status !== "非公開").map(e => {
-        const live = db.entries.filter(x => x.eventId === e.id && x.status === "参加");
-        return { ...e, entryCount: live.length, joined: live.some(x => x.memberToken === SELF), comments: commentsFor("event", e.id) };
+        const live = db.entries.filter(x => x.eventId === e.id && ["承認待ち", "参加確定"].includes(x.status));
+        const mine = db.entries.filter(x => x.eventId === e.id && x.memberToken === SELF && x.status !== "キャンセル").pop();
+        return { ...e, entryCount: live.length, myStatus: mine ? mine.status : "" };
       }));
     }
     return wait({ error: "invalid action" });
@@ -617,8 +618,7 @@ const Demo = (() => {
       }
       case "addAgencyPost": db.posts.unshift({ ...p, id: "p" + seq++, status: "承認待ち", ownerToken: SELF, ownerName: self().name, ownerCompany: self().company, timestamp: new Date().toISOString() }); break;
       case "closeAgencyPost": { const x = db.posts.find(x => x.id === p.id && x.ownerToken === SELF); if (x) x.status = "募集終了"; break; }
-      case "joinEvent": db.entries.push({ id: "en" + seq++, eventId: p.eventId, memberToken: SELF, memberName: self().name, status: "参加", note: "" }); break;
-      case "cancelEvent": db.entries.filter(x => x.eventId === p.eventId && x.memberToken === SELF).forEach(x => x.status = "キャンセル"); break;
+      case "joinEvent": db.entries.push({ id: "en" + seq++, eventId: p.eventId, memberToken: SELF, memberName: self().name, status: "承認待ち", note: "", timestamp: new Date().toISOString() }); break;
     }
     console.info("[デモ] 送信内容（保存されません）:", action, p);
     return wait({ ok: true });
