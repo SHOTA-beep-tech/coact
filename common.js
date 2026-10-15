@@ -49,6 +49,11 @@ const PROFILE_SECTIONS = [
     { key: "tagline", label: "ひとこと", type: "text", required: true, maxlength: 60, placeholder: "例：住まいのことなら何でもご相談ください！" },
     { key: "photo", label: "プロフィール写真", type: "image", large: true, dataKey: "photoDataUrl", urlKey: "photoUrl", removeKey: "removePhoto", help: "会員一覧のカード上部に大きく表示されます。顔写真・ロゴなど（なくても登録できます）" },
   ]},
+  // mypageOnly: 登録ページには出さず、マイページの編集画面だけに出す
+  { title: "会員限定クーポン", mypageOnly: true, fields: [
+    { key: "couponCode", label: "クーポンコード", type: "text", maxlength: 30, placeholder: "例：COACT10", help: "COACT会員だけに表示されます。会員がこのコードを伝えると割引を受けられる、という使い方ができます" },
+    { key: "couponDetail", label: "割引内容・使い方", type: "textarea", maxlength: 200, placeholder: "例：初回ご利用10%OFF。ご予約時にコードをお伝えください（2026年12月末まで）" },
+  ]},
   { title: "連絡先（他の会員には公開されません）", fields: [
     { key: "email", label: "メールアドレス", type: "email", required: true, placeholder: "例：taro@example.com", help: "マイページの専用リンクをお送りします" },
     { key: "phone", label: "電話番号", type: "tel", required: true, placeholder: "例：090-1234-5678" },
@@ -59,7 +64,9 @@ const PROFILE_SECTIONS = [
 
 // 他の会員に公開する項目（「詳細を見る」で全項目を表示）。連絡先・LINE・画像は含めない
 const PRIVATE_PROFILE_KEYS = ["email", "phone", "lineUrl", "lineQr", "photo"];
-const PUBLIC_PROFILE_FIELDS = PROFILE_SECTIONS.flatMap(s => s.fields).filter(f => !PRIVATE_PROFILE_KEYS.includes(f.key));
+// クーポンは「詳細を見る」の一覧ではなく、カード内の専用の枠に表示する
+const COUPON_KEYS = ["couponCode", "couponDetail"];
+const PUBLIC_PROFILE_FIELDS = PROFILE_SECTIONS.flatMap(s => s.fields).filter(f => !PRIVATE_PROFILE_KEYS.includes(f.key) && !COUPON_KEYS.includes(f.key));
 
 // ---------------- 汎用ヘルパー ----------------
 
@@ -218,6 +225,7 @@ const ICON_PATHS = {
   image: '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/>',
   chevron: '<path d="m6 9 6 6 6-6"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
+  tag: '<path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.5"/>',
   mail: '<rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 6-10 7L2 6"/>',
 };
 
@@ -232,8 +240,9 @@ function hydrateIcons(root = document) {
 
 // ---------------- プロフィールフォーム ----------------
 
-function renderProfileForm(container) {
-  container.innerHTML = PROFILE_SECTIONS.map((section, i) => `
+// opts.mypage: マイページの編集画面（mypageOnly の項目も表示する）
+function renderProfileForm(container, opts = {}) {
+  container.innerHTML = PROFILE_SECTIONS.filter(s => opts.mypage || !s.mypageOnly).map((section, i) => `
     <div class="form-section">
       <div class="form-section__title"><span class="form-section__num">0${i + 1}</span>${esc(section.title)}</div>
       ${section.fields.map(renderField).join("")}
@@ -307,11 +316,13 @@ function collectProfileForm(container) {
   PROFILE_SECTIONS.forEach(s => s.fields.forEach(f => {
     if (f.type === "image") {
       const wrap = container.querySelector(`[data-image-field="${f.key}"]`);
+      if (!wrap) return;
       if (wrap.dataset.value) out[f.dataKey] = wrap.dataset.value;
       else if (wrap.dataset.removed) out[f.removeKey] = "1";
       return;
     }
-    out[f.key] = container.querySelector(`[name="${f.key}"]`).value.trim();
+    const el = container.querySelector(`[name="${f.key}"]`);
+    if (el) out[f.key] = el.value.trim(); // 表示していない項目（登録ページのクーポンなど）は送らない
   }));
   return out;
 }
@@ -334,7 +345,14 @@ function renderMemberCard(p, opts = {}) {
     `<span class="badge">${esc(p.industry || "未設定")}</span>`,
     AGENT_SEEKER_STANCES.includes(p.agencyStance) ? `<span class="badge badge--accent">代理店希望</span>` : "",
     ["代理店を募集している", "どちらも"].includes(p.agencyStance) ?`<span class="badge badge--accent">代理店募集中</span>` : "",
+    p.couponCode ? `<span class="badge badge--coupon">会員限定クーポン</span>` : "",
   ].join("");
+  const coupon = p.couponCode ? `
+      <div class="mcard__coupon">
+        <div class="mcard__coupon-label">${icon("tag")}COACT会員限定クーポン</div>
+        <div class="mcard__coupon-code">${esc(p.couponCode)}</div>
+        ${p.couponDetail ? `<div class="mcard__coupon-text">${esc(p.couponDetail)}</div>` : ""}
+      </div>` : "";
   // clamp: 一覧で表示する最大行数（超えた分は「…」で省略）
   const row = (label, value, clamp) => value ? `<div class="mcard__row"><div class="mcard__label">${label}</div><div class="mcard__text ${clamp ? "clamp-" + clamp : ""}">${esc(value)}</div></div>` : "";
   const commentCount = (p.comments || []).length;
@@ -347,6 +365,7 @@ function renderMemberCard(p, opts = {}) {
       </div>
       <div class="mcard__tags">${tags}</div>
       ${p.tagline ? `<div class="mcard__tagline">${esc(p.tagline)}</div>` : ""}
+      ${coupon}
       <div class="mcard__body">
         <div class="mcard__summary">
           ${row("活動エリア", p.area, 2)}
@@ -528,7 +547,7 @@ const Demo = (() => {
   const db = {
     members: [
       { token: SELF, publicId: "m0", status: "公開", name: "デモ 太郎", company: "デモ株式会社", title: "代表", industry: "不動産", area: "大阪府", business: "大阪市内の売買仲介・賃貸管理", vision: "", wantAsCustomer: "", wantAsPartner: "", agencyStance: "特になし", connectedIndustries: "", tagline: "これはデモ用のあなたのプロフィールです", photoUrl: "", email: "demo@example.com", phone: "090-0000-0000" },
-      { publicId: "m1", status: "公開", name: "佐藤 美咲", company: "Salon Lumière", title: "オーナー", industry: "美容・健康", area: "東京都（渋谷・新宿）", business: "渋谷でまつげ・ネイルサロンを2店舗運営しています。", vision: "3年以内に5店舗、スクール事業も。", wantAsCustomer: "美容に関心のある20〜40代の女性", wantAsPartner: "物件探しに強い不動産会社、SNS運用代行", agencyStance: "代理店を募集している", connectedIndustries: "美容、アパレル、広告", tagline: "女性のキレイを応援します！", photoUrl: "" },
+      { publicId: "m1", status: "公開", name: "佐藤 美咲", company: "Salon Lumière", title: "オーナー", industry: "美容・健康", area: "東京都（渋谷・新宿）", business: "渋谷でまつげ・ネイルサロンを2店舗運営しています。", vision: "3年以内に5店舗、スクール事業も。", wantAsCustomer: "美容に関心のある20〜40代の女性", wantAsPartner: "物件探しに強い不動産会社、SNS運用代行", agencyStance: "代理店を募集している", connectedIndustries: "美容、アパレル、広告", tagline: "女性のキレイを応援します！", photoUrl: "", couponCode: "COACT-LUMIERE", couponDetail: "初回ご来店のまつげ・ネイル全メニュー15%OFF。ご予約時にコードをお伝えください。" },
       { publicId: "m2", status: "公開", name: "田中 健太", company: "個人（会社員）", title: "法人営業", industry: "会社員・その他", area: "大阪府・京都府／オンライン可", business: "通信系企業で法人営業をしています。副業で扱える商材を探しています。", vision: "将来は独立したい", wantAsCustomer: "", wantAsPartner: "代理店募集をしている企業様", agencyStance: "代理店として扱える商材を探している", connectedIndustries: "IT、通信、飲食", tagline: "営業力には自信あります", photoUrl: "" },
       { publicId: "m3", status: "公開", name: "鈴木 一郎", company: "鈴木工務店", title: "代表", industry: "建設・リフォーム", area: "兵庫県（神戸市・阪神間）・大阪府北部", business: "戸建てリフォーム・外壁塗装・水回り工事", vision: "地域No.1のリフォーム店に", wantAsCustomer: "築20年以上の戸建てオーナー様", wantAsPartner: "不動産会社、保険代理店（火災保険）", agencyStance: "どちらも", connectedIndustries: "不動産、保険", tagline: "住まいの困りごと、すぐ駆けつけます", photoUrl: "" },
       { publicId: "m4", status: "公開", name: "高橋 彩", company: "Webクリエイト合同会社", title: "ディレクター", industry: "IT・Web", area: "全国（オンライン対応）", business: "中小企業向けホームページ制作・MEO対策", vision: "", wantAsCustomer: "集客に悩む店舗オーナー様", wantAsPartner: "", agencyStance: "代理店を募集している", connectedIndustries: "飲食、美容", tagline: "Web集客ならおまかせください", photoUrl: "" },

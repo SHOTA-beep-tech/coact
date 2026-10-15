@@ -92,7 +92,7 @@ renderHeader("mypage");
 document.querySelectorAll("[data-link]").forEach(a => a.href = withToken(a.dataset.link));
 
 const fields = document.getElementById("fields");
-renderProfileForm(fields);
+renderProfileForm(fields, { mypage: true });
 let profile = null;
 
 function renderHome() {
@@ -129,7 +129,7 @@ async function load() {
 }
 
 function openEdit(focusPhoto) {
-  renderProfileForm(fields); // 画像選択状態をリセット
+  renderProfileForm(fields, { mypage: true }); // 画像選択状態をリセット
   fillProfileForm(fields, profile);
   showOnly("screen-edit");
   if (focusPhoto) {

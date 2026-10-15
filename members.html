@@ -36,6 +36,10 @@
           <option value="recruit">代理店を募集している</option>
           <option value="seek">代理店になりたい</option>
         </select>
+        <select id="coupon-filter">
+          <option value="">クーポン：全て</option>
+          <option value="yes">会員限定クーポンあり</option>
+        </select>
         <input type="text" id="keyword" placeholder="キーワード（名前・会社・事業内容・エリアなど）">
       </div>
       <div class="result-count" id="result-count"></div>
@@ -71,7 +75,8 @@ function filtered() {
     if (industry && m.industry !== industry) return false;
     if (stance === "recruit" && !["代理店を募集している", "どちらも"].includes(m.agencyStance)) return false;
     if (stance === "seek" && !AGENT_SEEKER_STANCES.includes(m.agencyStance)) return false;
-    if (kw && ![m.name, m.company, m.title, m.area, m.business, m.tagline, m.wantAsPartner, m.wantAsCustomer].join(" ").toLowerCase().includes(kw)) return false;
+    if (document.getElementById("coupon-filter").value === "yes" && !m.couponCode) return false;
+    if (kw && ![m.name, m.company, m.title, m.area, m.business, m.tagline, m.wantAsPartner, m.wantAsCustomer, m.couponDetail].join(" ").toLowerCase().includes(kw)) return false;
     return true;
   });
 }
@@ -92,6 +97,7 @@ document.getElementById("industry-chips").addEventListener("click", ev => {
   renderGrid();
 });
 document.getElementById("stance-filter").addEventListener("change", renderGrid);
+document.getElementById("coupon-filter").addEventListener("change", renderGrid);
 document.getElementById("keyword").addEventListener("input", renderGrid);
 
 bindComments((type, id, list) => {
