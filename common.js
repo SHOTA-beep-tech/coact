@@ -54,16 +54,19 @@ const PROFILE_SECTIONS = [
     { key: "couponCode", label: "クーポンコード", type: "text", maxlength: 30, placeholder: "例：COACT10", help: "COACT会員だけに表示されます。会員がこのコードを伝えると割引を受けられる、という使い方ができます" },
     { key: "couponDetail", label: "割引内容・使い方", type: "textarea", maxlength: 200, placeholder: "例：初回ご利用10%OFF。ご予約時にコードをお伝えください（2026年12月末まで）" },
   ]},
-  { title: "連絡先（他の会員には公開されません）", fields: [
-    { key: "email", label: "メールアドレス", type: "email", required: true, placeholder: "例：taro@example.com", help: "マイページの専用リンクをお送りします" },
-    { key: "phone", label: "電話番号", type: "tel", required: true, placeholder: "例：090-1234-5678" },
+  { title: "つながった相手にだけ見せる連絡先", lead: "「繋がりたい」を承認し合った相手にだけ表示されます。どれか1つ以上の登録をおすすめします。", fields: [
     { key: "lineUrl", label: "LINE友だち追加URL", type: "url", placeholder: "例：https://line.me/ti/p/xxxxxxxx" },
     { key: "lineQr", label: "LINE QRコード画像", type: "image", dataKey: "lineQrDataUrl", urlKey: "lineQrUrl", removeKey: "removeLineQr" },
+    { key: "instagramUrl", label: "InstagramのURL", type: "url", placeholder: "例：https://www.instagram.com/xxxxxxxx" },
+  ]},
+  { title: "運営への連絡先（他の会員には公開されません）", fields: [
+    { key: "email", label: "メールアドレス", type: "email", required: true, placeholder: "例：taro@example.com", help: "マイページの専用リンクや「繋がりたい」のお知らせをお送りします" },
+    { key: "phone", label: "電話番号", type: "tel", required: true, placeholder: "例：090-1234-5678" },
   ]},
 ];
 
-// 他の会員に公開する項目（「詳細を見る」で全項目を表示）。連絡先・LINE・画像は含めない
-const PRIVATE_PROFILE_KEYS = ["email", "phone", "lineUrl", "lineQr", "photo"];
+// 他の会員に公開する項目（「詳細を見る」で全項目を表示）。連絡先・SNS・画像は含めない
+const PRIVATE_PROFILE_KEYS = ["email", "phone", "lineUrl", "lineQr", "instagramUrl", "photo"];
 // クーポンは「詳細を見る」の一覧ではなく、カード内の専用の枠に表示する
 const COUPON_KEYS = ["couponCode", "couponDetail"];
 const PUBLIC_PROFILE_FIELDS = PROFILE_SECTIONS.flatMap(s => s.fields).filter(f => !PRIVATE_PROFILE_KEYS.includes(f.key) && !COUPON_KEYS.includes(f.key));
@@ -199,7 +202,13 @@ function renderHeader(active) {
   document.body.insertAdjacentHTML("beforeend", `
     <footer class="footer"><div class="footer__inner">
       <span class="logo">CO<span>ACT</span></span>
-      <span><a href="${withToken("ads.html")}">広告掲載について</a>　　© ${new Date().getFullYear()} ${SERVICE_NAME}</span>
+      <span class="footer__links">
+        <a href="${withToken("ads.html")}">広告掲載について</a>
+        <a href="${withToken("terms.html")}">利用規約</a>
+        <a href="${withToken("privacy.html")}">プライバシーポリシー</a>
+        <a href="${withToken("tokushoho.html")}">特定商取引法に基づく表記</a>
+        <span>© ${new Date().getFullYear()} ${SERVICE_NAME}</span>
+      </span>
     </div></footer>`);
   hydrateIcons();
 }
@@ -227,6 +236,7 @@ const ICON_PATHS = {
   plus: '<path d="M12 5v14M5 12h14"/>',
   tag: '<path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.5"/>',
   mail: '<rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 6-10 7L2 6"/>',
+  instagram: '<rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><path d="M17.5 6.5h.01"/>',
 };
 
 function icon(name) {
@@ -245,6 +255,7 @@ function renderProfileForm(container, opts = {}) {
   container.innerHTML = PROFILE_SECTIONS.filter(s => opts.mypage || !s.mypageOnly).map((section, i) => `
     <div class="form-section">
       <div class="form-section__title"><span class="form-section__num">0${i + 1}</span>${esc(section.title)}</div>
+      ${section.lead ? `<div class="form-section__lead">${esc(section.lead)}</div>` : ""}
       ${section.fields.map(renderField).join("")}
     </div>`).join("");
 
@@ -377,13 +388,35 @@ function renderMemberCard(p, opts = {}) {
         </div>
         ${opts.preview ? "" : `<button type="button" class="link-btn" data-toggle-details>${opts.open ? "閉じる" : "詳細を見る"}</button>`}
       </div>
+      ${p.relation === "connected" && !opts.preview ? `<div class="mcard__contacts"><div class="mcard__label">つながった相手の連絡先</div>${contactsHtml(p)}</div>` : ""}
       ${opts.preview ? "" : `
       <div class="mcard__foot">
         <button type="button" class="btn btn--ghost btn--small" data-toggle-comments>${commentLabel(commentCount)}</button>
-        <button type="button" class="btn btn--primary btn--small" data-intro>${icon("link")}繋がりたい</button>
+        ${introButtonHtml(p.relation)}
       </div>
       ${commentsBlockHtml("member", p.publicId, p.comments || [])}`}
     </div>`;
+}
+
+// 「繋がりたい」ボタン：相手との関係によって表示を変える
+function introButtonHtml(relation) {
+  if (relation === "connected") return `<button type="button" class="btn btn--ghost btn--small" disabled>${icon("check")}つながり済み</button>`;
+  if (relation === "sent") return `<button type="button" class="btn btn--ghost btn--small" disabled>${icon("clock")}リクエスト送信済み</button>`;
+  if (relation === "received") return `<a class="btn btn--accent btn--small" href="${withToken("mypage.html")}#connections">${icon("mail")}リクエストに返事する</a>`;
+  return `<button type="button" class="btn btn--primary btn--small" data-intro>${icon("link")}繋がりたい</button>`;
+}
+
+// つながった相手の LINE・Instagram（マイページの「つながった人」と会員カードで共通）
+function contactsHtml(p) {
+  const line = safeUrl(p.lineUrl);
+  const insta = safeUrl(p.instagramUrl);
+  const qr = safeUrl(p.lineQrUrl);
+  if (!line && !insta && !qr) return `<div class="contacts__empty">この方はまだLINE・Instagramを登録していません。</div>`;
+  return `<div class="contacts">
+    ${line ? `<a class="btn btn--line btn--small" href="${esc(line)}" target="_blank" rel="noopener">${icon("chat")}LINEで友だち追加</a>` : ""}
+    ${insta ? `<a class="btn btn--ghost btn--small" href="${esc(insta)}" target="_blank" rel="noopener">${icon("instagram")}Instagramを見る</a>` : ""}
+    ${qr ? `<a class="contacts__qr" href="${esc(qr)}" target="_blank" rel="noopener"><img src="${esc(qr)}" alt="LINEのQRコード"><span>LINE QRコード</span></a>` : ""}
+  </div>`;
 }
 
 // カード内のボタン（もっと見る／コメント／繋がりたい）を有効化
@@ -398,9 +431,17 @@ function bindCardActions(root, lookup) {
     if (ev.target.closest("[data-toggle-comments]")) {
       card.querySelector(".comments").classList.toggle("open");
     }
-    if (ev.target.closest("[data-intro]")) {
+    const introBtn = ev.target.closest("[data-intro]");
+    if (introBtn) {
       const info = lookup(card);
-      if (info) openIntroModal(info.targetType, info.targetId, info.targetName);
+      if (!info) return;
+      openIntroModal(info.targetType, info.targetId, info.targetName, () => {
+        // 会員へのリクエストは送信後「リクエスト送信済み」に変える
+        if (info.targetType === "member") {
+          introBtn.outerHTML = introButtonHtml("sent");
+          if (info.onSent) info.onSent();
+        }
+      });
     }
   });
 }
@@ -496,25 +537,38 @@ function bindComments(onUpdate) {
   });
 }
 
-// ---------------- 「繋がりたい」（運営への紹介依頼） ----------------
+// ---------------- 「繋がりたい」（会員同士）／代理店への応募（運営が仲介） ----------------
 
-function openIntroModal(targetType, targetId, targetName) {
+const INTRO_TEXT = {
+  member: {
+    title: name => `${name} さんに「繋がりたい」を送る`,
+    lead: "お相手にメールでお知らせが届きます。お相手が承認すると、お互いのLINE・Instagramが見られるようになります。",
+    steps: ["お相手にリクエストが届きます", "お相手がマイページで承認します", "承認されると、マイページの「つながった人」に相手のLINE・Instagramが表示されます"],
+    button: "リクエストを送る",
+    done: "リクエストを送りました",
+  },
+  agency: {
+    title: name => `${name} さんの募集に応募`,
+    lead: "代理店募集への応募は、運営スタッフが間に入ってご紹介します。",
+    steps: ["運営があなたの応募を確認します", "運営から募集者に、紹介してよいか確認します", "了承が得られたら、運営から双方へご連絡します"],
+    button: "応募する",
+    done: "応募しました。運営からご連絡いたします",
+  },
+};
+
+function openIntroModal(targetType, targetId, targetName, onSent) {
   let modal = document.getElementById("intro-modal");
   if (!modal) {
     document.body.insertAdjacentHTML("beforeend", `
       <div class="modal" id="intro-modal"><div class="modal__box">
-        <div class="modal__title"><span id="intro-target"></span> さんへの紹介を依頼</div>
-        <div class="modal__lead">COACTでは、会員同士の連絡先を直接公開せず、運営スタッフが間に入ってご紹介します。</div>
-        <ol class="steps">
-          <li>運営があなたの依頼を確認します</li>
-          <li>運営からお相手に、紹介してよいか確認します</li>
-          <li>お相手の了承が得られたら、運営から双方へご連絡します</li>
-        </ol>
+        <div class="modal__title" id="intro-title"></div>
+        <div class="modal__lead" id="intro-lead"></div>
+        <ol class="steps" id="intro-steps"></ol>
         <div class="field"><label class="field-label" for="intro-message">お相手へのメッセージ<span class="opt">任意</span></label>
           <textarea id="intro-message" maxlength="500" placeholder="例：協業についてお話ししたいです"></textarea></div>
         <div class="btn-row">
           <button type="button" class="btn btn--ghost" id="intro-cancel">キャンセル</button>
-          <button type="button" class="btn btn--primary" id="intro-send">紹介を依頼する</button>
+          <button type="button" class="btn btn--primary" id="intro-send"></button>
         </div>
       </div></div>`);
     modal = document.getElementById("intro-modal");
@@ -526,7 +580,8 @@ function openIntroModal(targetType, targetId, targetName) {
       try {
         await apiPost("requestIntro", { token: TOKEN, ...modal._target, message: document.getElementById("intro-message").value.trim() });
         modal.classList.remove("open");
-        toast("紹介を依頼しました。運営からご連絡いたします");
+        toast(INTRO_TEXT[modal._target.targetType].done);
+        if (modal._onSent) modal._onSent();
       } catch (e) {
         toast("送信できませんでした");
       } finally {
@@ -534,8 +589,13 @@ function openIntroModal(targetType, targetId, targetName) {
       }
     });
   }
+  const text = INTRO_TEXT[targetType] || INTRO_TEXT.member;
   modal._target = { targetType, targetId };
-  document.getElementById("intro-target").textContent = targetName;
+  modal._onSent = onSent;
+  document.getElementById("intro-title").textContent = text.title(targetName);
+  document.getElementById("intro-lead").textContent = text.lead;
+  document.getElementById("intro-steps").innerHTML = text.steps.map(s => `<li>${esc(s)}</li>`).join("");
+  document.getElementById("intro-send").textContent = text.button;
   document.getElementById("intro-message").value = "";
   modal.classList.add("open");
 }
@@ -575,11 +635,38 @@ const Demo = (() => {
   const demoStatus = new URLSearchParams(location.search).get("demoStatus");
   if (demoStatus) db.members[0].status = demoStatus;
   db.adRequests = [{ id: "r1", status: "未対応", company: "株式会社サンプル", name: "広告 担当", email: "ad@example.com", phone: "03-0000-0000", plan: "会員一覧ページ", message: "クラウド会計サービスの広告を検討しています。", timestamp: "2026-10-08" }];
-  db.intros = [{ id: "i1", status: "未対応", fromToken: "t2", fromName: "田中 健太", targetType: "agency", targetId: "p1", targetName: "高橋 彩", message: "代理店として紹介したい先が3社あります", timestamp: "2026-10-09" }];
+  db.intros = [
+    { id: "i1", status: "未対応", fromToken: "t2", fromName: "田中 健太", targetType: "agency", targetId: "p1", targetName: "高橋 彩", message: "代理店として紹介したい先が3社あります", timestamp: "2026-10-09" },
+    // デモの「あなた」宛て：鈴木さんからのリクエスト（返事待ち）／高橋さんとはつながり済み／山本さんへ送信済み
+    { id: "i2", status: "承認待ち", fromToken: "t3", fromName: "鈴木 一郎", targetType: "member", targetId: "m0", targetName: "デモ 太郎", message: "不動産のお客様でリフォームをご検討の方がいれば、ぜひご紹介し合いたいです！", timestamp: "2026-10-20" },
+    { id: "i3", status: "つながり済み", fromToken: "demo", fromName: "デモ 太郎", targetType: "member", targetId: "m4", targetName: "高橋 彩", message: "", timestamp: "2026-10-15", respondedAt: "2026-10-16" },
+    { id: "i4", status: "お断り", fromToken: "demo", fromName: "デモ 太郎", targetType: "member", targetId: "m5", targetName: "山本 大輔", message: "", timestamp: "2026-10-18" },
+  ];
+  Object.assign(db.members.find(m => m.publicId === "m4"), { lineUrl: "https://line.me/ti/p/example", instagramUrl: "https://www.instagram.com/example" });
+  const byPublicId = id => db.members.find(m => m.publicId === id);
+  // 自分から見た相手との関係（本番の relationMap と同じ考え方）
+  const relationOf = other => {
+    let rel = "";
+    const rank = { connected: 3, received: 2, sent: 1 };
+    db.intros.filter(x => x.targetType === "member").forEach(x => {
+      const to = byPublicId(x.targetId);
+      let r = "";
+      if (x.fromToken === SELF && to === other) r = x.status === "つながり済み" ? "connected" : "sent";
+      else if (x.fromToken === other.token && to && to.token === SELF) r = x.status === "つながり済み" ? "connected" : x.status === "承認待ち" ? "received" : "";
+      if (r && (!rel || rank[r] > rank[rel])) rel = r;
+    });
+    return rel;
+  };
+  const withRelation = m => {
+    const relation = relationOf(m);
+    const o = { ...publicMember(m), relation, comments: commentsFor("member", m.publicId) };
+    if (relation === "connected") Object.assign(o, { lineUrl: m.lineUrl || "", lineQrUrl: m.lineQrUrl || "", instagramUrl: m.instagramUrl || "" });
+    return o;
+  };
   const SHEET_MAP = { Members: "members", AgencyPosts: "posts", Events: "events", EventEntries: "entries", Ads: "ads", AdRequests: "adRequests", Intros: "intros", Comments: "comments" };
   let seq = 100;
   const self = () => db.members.find(m => m.token === SELF);
-  const publicMember = m => { const { token, email, phone, lineUrl, lineQrUrl, status, ...rest } = m; return rest; };
+  const publicMember = m => { const { token, email, phone, lineUrl, lineQrUrl, instagramUrl, status, ...rest } = m; return rest; };
   const commentsFor = (type, id) => db.comments.filter(c => c.targetType === type && c.targetId === id && c.status !== "非公開")
     .map(c => ({ id: c.id, body: c.body, timestamp: c.timestamp, isMine: c.authorToken === SELF }));
   const wait = v => new Promise(r => setTimeout(() => r(JSON.parse(JSON.stringify(v))), 250));
@@ -596,7 +683,7 @@ const Demo = (() => {
     switch (action) {
       case "getProfile": return wait(self());
       case "listMembers": return wait(db.members.filter(m => m.token !== SELF && m.status === "公開")
-        .map(m => ({ ...publicMember(m), comments: commentsFor("member", m.publicId) })));
+        .map(withRelation));
       case "listComments": return wait(commentsFor(p.targetType, p.targetId));
       case "listAgency": return wait({
         posts: db.posts.filter(x => x.status === "公開" || x.ownerToken === SELF).map(x => {
@@ -605,8 +692,25 @@ const Demo = (() => {
           return { ...rest, isMine: ownerToken === SELF, ownerArea: owner.area || "", comments: commentsFor("agency", x.id) };
         }),
         agents: db.members.filter(m => m.token !== SELF && m.status === "公開" && AGENT_SEEKER_STANCES.includes(m.agencyStance))
-          .map(m => ({ ...publicMember(m), comments: commentsFor("member", m.publicId) })),
+          .map(withRelation),
       });
+      case "listConnections": {
+        const out = { received: [], sent: [], connections: [] };
+        const seen = {};
+        db.intros.filter(x => x.targetType === "member").forEach(x => {
+          const to = byPublicId(x.targetId);
+          const from = db.members.find(m => m.token === x.fromToken);
+          if (!to || !from || (from.token !== SELF && to.token !== SELF)) return;
+          const other = from.token === SELF ? to : from;
+          if (x.status === "つながり済み") {
+            if (!seen[other.token]) out.connections.push({ id: x.id, connectedAt: x.respondedAt, member: withRelation(other) });
+            seen[other.token] = true;
+          } else if (to.token === SELF && x.status === "承認待ち") out.received.push({ id: x.id, timestamp: x.timestamp, message: x.message, member: publicMember(other) });
+          else if (from.token === SELF) out.sent.push({ id: x.id, timestamp: x.timestamp, member: publicMember(other) });
+        });
+        out.sent = out.sent.filter(s => !seen[byPublicId(s.member.publicId).token]);
+        return wait(out);
+      }
       case "listEvents": return wait(db.events.filter(e => e.status !== "非公開").map(e => {
         const live = db.entries.filter(x => x.eventId === e.id && ["承認待ち", "参加確定"].includes(x.status));
         const mine = db.entries.filter(x => x.eventId === e.id && x.memberToken === SELF && x.status !== "キャンセル").pop();
@@ -624,7 +728,12 @@ const Demo = (() => {
         if (p.lineQrDataUrl) self().lineQrUrl = p.lineQrDataUrl; else if (p.removeLineQr) self().lineQrUrl = "";
         break;
       case "addComment": db.comments.push({ id: "c" + seq++, status: "公開", targetType: p.targetType, targetId: p.targetId, authorToken: SELF, authorName: self().name, body: p.body, timestamp: new Date().toISOString() }); break;
-      case "requestIntro": db.intros.push({ id: "i" + seq++, status: "未対応", fromToken: SELF, fromName: self().name, targetType: p.targetType, targetId: p.targetId, targetName: "", message: p.message, timestamp: new Date().toISOString() }); break;
+      case "requestIntro": db.intros.push({ id: "i" + seq++, status: p.targetType === "member" ? "承認待ち" : "未対応", fromToken: SELF, fromName: self().name, targetType: p.targetType, targetId: p.targetId, targetName: (byPublicId(p.targetId) || {}).name || "", message: p.message, timestamp: new Date().toISOString() }); break;
+      case "respondIntro": {
+        const x = db.intros.find(i => i.id === p.id && i.status === "承認待ち");
+        if (x) { x.status = p.decision === "accept" ? "つながり済み" : "お断り"; x.respondedAt = new Date().toISOString(); }
+        break;
+      }
       case "adminSave": {
         const list = db[SHEET_MAP[p.sheet]];
         const idKey = p.sheet === "Members" ? "token" : "id";

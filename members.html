@@ -13,7 +13,7 @@
 <div class="page-hero"><div class="page-hero__inner">
   <div class="page-hero__kicker">MEMBERS</div>
   <div class="page-hero__title">業種別に会員を探す</div>
-  <div class="page-hero__lead">気になる方には匿名でコメントしたり、「繋がりたい」から運営にご紹介を依頼できます。</div>
+  <div class="page-hero__lead">気になる方には匿名でコメントしたり、「繋がりたい」を送れます。相手が承認すると、お互いのLINE・Instagramが見られるようになります。</div>
 </div></div>
 
 <div class="container">
@@ -106,7 +106,7 @@ bindComments((type, id, list) => {
 });
 bindCardActions(document.getElementById("grid"), card => {
   const m = members.find(x => x.publicId === card.dataset.member);
-  return m && { targetType: "member", targetId: m.publicId, targetName: m.name };
+  return m && { targetType: "member", targetId: m.publicId, targetName: m.name, onSent: () => { m.relation = "sent"; } };
 });
 
 async function load() {

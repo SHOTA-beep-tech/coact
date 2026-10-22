@@ -209,7 +209,7 @@ bindCardActions(document.getElementById("screen-main"), card => {
     return p && { targetType: "agency", targetId: p.id, targetName: p.ownerName };
   }
   const m = agents.find(x => x.publicId === card.dataset.member);
-  return m && { targetType: "member", targetId: m.publicId, targetName: m.name };
+  return m && { targetType: "member", targetId: m.publicId, targetName: m.name, onSent: () => { m.relation = "sent"; } };
 });
 
 // ---- 自分の募集を終了 ----
