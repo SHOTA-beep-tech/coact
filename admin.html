@@ -28,6 +28,7 @@
   .item__body textarea { min-height: 70px; }
   .entries { font-size: 13px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 10px 12px; margin-bottom: 12px; }
   .entries li { margin-left: 18px; }
+  .tab-notice { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; font-size: 13px; background: var(--warn-soft); color: var(--warn); border: 1px solid #efe3bf; border-radius: var(--radius-sm); padding: 10px 14px; margin-bottom: 12px; }
   .info { font-size: 13px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 10px 12px; margin-bottom: 12px; white-space: pre-wrap; }
   @media (max-width: 560px) { .item__head { flex-wrap: wrap; } .item__actions { width: 100%; } .item__actions .btn { flex: 1; } }
 </style>
@@ -62,6 +63,7 @@
       <button type="button" class="btn btn--primary btn--small" id="new-btn" hidden><span data-icon="plus"></span>新規作成</button>
       <button type="button" class="btn btn--ghost btn--small" id="reload-btn">更新</button>
     </div>
+    <div id="tab-notice"></div>
     <div id="list"></div>
   </div>
 
@@ -252,6 +254,24 @@ function itemHtml(o, isNew = false) {
     </div>`;
 }
 
+// 会員タブ：LINE・Instagram が未登録の会員に、登録をお願いするメールを送る
+const lacksContact = m => m.status === "公開" && m.email && !m.lineUrl && !m.lineQrUrl && !m.instagramUrl;
+function renderTabNotice() {
+  const box = document.getElementById("tab-notice");
+  const n = tab.key === "Members" ? (db.Members || []).filter(lacksContact).length : 0;
+  box.innerHTML = n ? `<div class="tab-notice"><span>${icon("alert")} LINE・Instagramが未登録の会員（公開中）：${n}名</span>
+    <button type="button" class="btn btn--ghost btn--small" id="remind-btn">${icon("mail")}登録をお願いするメールを送る</button></div>` : "";
+  const btn = document.getElementById("remind-btn");
+  if (!btn) return;
+  btn.addEventListener("click", async () => {
+    const names = (db.Members || []).filter(lacksContact).map(m => m.name).join("、");
+    if (!confirm(`次の${n}名に「LINE・Instagramのご登録のお願い」メールを送ります。\n\n${names}\n\n送信しますか？`)) return;
+    btn.disabled = true;
+    await apiPost("adminRemindContacts", { password });
+    toast(`${n}名にメールを送りました`);
+  });
+}
+
 function renderList() {
   const status = document.getElementById("status-filter").value;
   const kw = document.getElementById("search").value.trim().toLowerCase();
@@ -259,6 +279,7 @@ function renderList() {
   if (tab.pending) rows.sort((a, b) => (b.status === tab.pending) - (a.status === tab.pending));
   rows = rows.filter(o => (!status || o.status === status) && (!kw || JSON.stringify(o).toLowerCase().includes(kw)));
   document.getElementById("list").innerHTML = rows.length ? rows.map(o => itemHtml(o)).join("") : `<div class="empty">データがありません</div>`;
+  renderTabNotice();
 }
 
 document.getElementById("new-btn").addEventListener("click", () => {
