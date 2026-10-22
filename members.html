@@ -43,6 +43,7 @@
         <input type="text" id="keyword" placeholder="キーワード（名前・会社・事業内容・エリアなど）">
       </div>
       <div class="result-count" id="result-count"></div>
+      <div class="note" data-intro-quota hidden style="margin-top:4px"></div>
     </div>
     <div class="grid" id="grid"></div>
   </div>
@@ -112,7 +113,8 @@ bindCardActions(document.getElementById("grid"), card => {
 async function load() {
   if (!TOKEN) { showOnly("screen-error"); return; }
   try {
-    const [data, adList] = await Promise.all([apiGet("listMembers", { token: TOKEN }), loadAds("会員一覧")]);
+    const [data, adList] = await Promise.all([apiGet("listMembers", { token: TOKEN }), loadAds("会員一覧"), loadIntroQuota()]);
+    renderIntroQuota();
     if (!Array.isArray(data)) { showAccessError(data && data.error); return; }
     members = data;
     ads = adList;

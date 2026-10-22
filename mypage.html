@@ -75,6 +75,7 @@
     <div class="panel" id="connections" hidden>
       <div class="panel__title">つながり</div>
       <div class="panel__lead">「繋がりたい」のリクエストと、つながった相手の連絡先を確認できます。</div>
+      <div class="note" data-intro-quota hidden style="margin-bottom:12px"></div>
       <div id="conn-hint"></div>
       <div class="tabs conn-tabs" id="conn-tabs"></div>
       <div id="conn-list"></div>
@@ -152,7 +153,8 @@ const CONN_TABS = [["received", "届いたリクエスト"], ["connections", "�
 
 async function loadConnections() {
   try {
-    const data = await apiGet("listConnections", { token: TOKEN });
+    const [data] = await Promise.all([apiGet("listConnections", { token: TOKEN }), loadIntroQuota()]);
+    renderIntroQuota();
     if (!data || data.error) return;
     conn = data;
     if (!conn.received.length && conn.connections.length) connTab = "connections";

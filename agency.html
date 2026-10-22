@@ -64,6 +64,7 @@
         <div class="intro-note"><span data-icon="users"></span><span>「代理店として扱える商材を探している」と登録している会員です。あなたの商材を扱ってくれる方を探せます。</span></div>
         <div class="chips" id="agent-chips"></div>
         <input type="text" class="kw" id="agent-kw" placeholder="キーワード（名前・エリア・事業内容など）">
+        <div class="note" data-intro-quota hidden style="margin-top:8px"></div>
       </div>
       <div class="grid" id="agent-grid"></div>
     </div>
@@ -248,7 +249,8 @@ document.getElementById("post-form").addEventListener("submit", async ev => {
 async function load() {
   if (!TOKEN) { showOnly("screen-error"); return; }
   try {
-    const [data, ads] = await Promise.all([apiGet("listAgency", { token: TOKEN }), loadAds("代理店")]);
+    const [data, ads] = await Promise.all([apiGet("listAgency", { token: TOKEN }), loadAds("代理店"), loadIntroQuota()]);
+    renderIntroQuota();
     if (!data || data.error) { showAccessError(data && data.error); return; }
     posts = data.posts || [];
     agents = data.agents || [];

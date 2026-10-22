@@ -398,11 +398,35 @@ function renderMemberCard(p, opts = {}) {
     </div>`;
 }
 
+// 今月の「繋がりたい」の残り件数（会員一覧・代理店・マイページで共通。毎月1日にリセット）
+let INTRO_QUOTA = null;
+async function loadIntroQuota() {
+  try {
+    const q = await apiGet("introQuota", { token: TOKEN });
+    if (q && !q.error) INTRO_QUOTA = q;
+  } catch (e) {}
+  return INTRO_QUOTA;
+}
+function introQuotaText() {
+  if (!INTRO_QUOTA) return "";
+  return INTRO_QUOTA.remaining > 0
+    ? `今月はあと <b>${INTRO_QUOTA.remaining}</b> 人に「繋がりたい」を送れます（1か月${INTRO_QUOTA.limit}人まで・毎月1日にリセット）`
+    : `今月の「繋がりたい」は上限の${INTRO_QUOTA.limit}人に達しました。来月1日から、また送れるようになります。`;
+}
+function renderIntroQuota() {
+  document.querySelectorAll("[data-intro-quota]").forEach(el => {
+    el.innerHTML = introQuotaText();
+    el.hidden = !INTRO_QUOTA;
+  });
+}
+const introLimitReached = () => INTRO_QUOTA && INTRO_QUOTA.remaining <= 0;
+
 // 「繋がりたい」ボタン：相手との関係によって表示を変える
 function introButtonHtml(relation) {
   if (relation === "connected") return `<button type="button" class="btn btn--ghost btn--small" disabled>${icon("check")}つながり済み</button>`;
   if (relation === "sent") return `<button type="button" class="btn btn--ghost btn--small" disabled>${icon("clock")}リクエスト送信済み</button>`;
   if (relation === "received") return `<a class="btn btn--accent btn--small" href="${withToken("mypage.html")}#connections">${icon("mail")}リクエストに返事する</a>`;
+  if (introLimitReached()) return `<button type="button" class="btn btn--ghost btn--small" disabled title="来月1日から送れます">今月の上限に達しました</button>`;
   return `<button type="button" class="btn btn--primary btn--small" data-intro>${icon("link")}繋がりたい</button>`;
 }
 
@@ -440,6 +464,15 @@ function bindCardActions(root, lookup) {
         if (info.targetType === "member") {
           introBtn.outerHTML = introButtonHtml("sent");
           if (info.onSent) info.onSent();
+          if (INTRO_QUOTA) {
+            INTRO_QUOTA.used++;
+            INTRO_QUOTA.remaining = Math.max(0, INTRO_QUOTA.remaining - 1);
+            renderIntroQuota();
+            // 上限に達したら、残りの「繋がりたい」ボタンをすべて押せなくする
+            if (introLimitReached()) document.querySelectorAll("[data-intro]").forEach(b => {
+              if (b.closest("[data-member]")) b.outerHTML = introButtonHtml("");
+            });
+          }
         }
       });
     }
@@ -593,7 +626,8 @@ function openIntroModal(targetType, targetId, targetName, onSent) {
   modal._target = { targetType, targetId };
   modal._onSent = onSent;
   document.getElementById("intro-title").textContent = text.title(targetName);
-  document.getElementById("intro-lead").textContent = text.lead;
+  document.getElementById("intro-lead").innerHTML = esc(text.lead) +
+    (targetType === "member" && INTRO_QUOTA ? `<br><span class="note">${introQuotaText()}</span>` : "");
   document.getElementById("intro-steps").innerHTML = text.steps.map(s => `<li>${esc(s)}</li>`).join("");
   document.getElementById("intro-send").textContent = text.button;
   document.getElementById("intro-message").value = "";
@@ -694,6 +728,14 @@ const Demo = (() => {
         agents: db.members.filter(m => m.token !== SELF && m.status === "公開" && AGENT_SEEKER_STANCES.includes(m.agencyStance))
           .map(withRelation),
       });
+      case "introQuota": {
+        const month = new Date().toISOString().slice(0, 7);
+        const used = db.intros.filter(x => x.fromToken === SELF && x.targetType === "member" && String(x.timestamp).slice(0, 7) === month).length;
+        // デモ確認用：URLに &demoUsed=30 を付けると上限に達した状態を確認できます
+        const forced = parseInt(new URLSearchParams(location.search).get("demoUsed"), 10);
+        const u = isNaN(forced) ? used : forced;
+        return wait({ limit: 30, used: u, remaining: Math.max(0, 30 - u) });
+      }
       case "listConnections": {
         const out = { received: [], sent: [], connections: [] };
         const seen = {};
