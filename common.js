@@ -32,7 +32,7 @@ const TOKEN = new URLSearchParams(location.search).get("token") || "";
 const PROFILE_SECTIONS = [
   { title: "基本情報", fields: [
     { key: "name", label: "お名前", type: "text", required: true, placeholder: "例：山田 太郎" },
-    { key: "company", label: "会社名・屋号", type: "text", placeholder: "例：株式会社〇〇／個人の方は屋号・勤務先・「個人」など" },
+    { key: "company", label: "会社名・屋号", type: "text", placeholder: "例：株式会社〇〇／個人の方は屋号・勤務先・「個人」など", help: "他の会員には表示されません（運営だけが確認します）" },
     { key: "title", label: "役職・肩書き", type: "text", placeholder: "例：代表取締役／営業／フリーランス" },
     { key: "industry", label: "業種", type: "select", required: true, options: INDUSTRIES, help: "会員一覧ではこの業種ごとに表示されます" },
     { key: "area", label: "活動エリア", type: "text", required: true, maxlength: 100, placeholder: "例：大阪府全域・兵庫県（神戸市）／全国・オンライン対応可" },
@@ -66,7 +66,7 @@ const PROFILE_SECTIONS = [
 ];
 
 // 他の会員に公開する項目（「詳細を見る」で全項目を表示）。連絡先・SNS・画像は含めない
-const PRIVATE_PROFILE_KEYS = ["email", "phone", "lineUrl", "lineQr", "instagramUrl", "photo"];
+const PRIVATE_PROFILE_KEYS = ["company", "email", "phone", "lineUrl", "lineQr", "instagramUrl", "photo"];
 // クーポンは「詳細を見る」の一覧ではなく、カード内の専用の枠に表示する
 const COUPON_KEYS = ["couponCode", "couponDetail"];
 const PUBLIC_PROFILE_FIELDS = PROFILE_SECTIONS.flatMap(s => s.fields).filter(f => !PRIVATE_PROFILE_KEYS.includes(f.key) && !COUPON_KEYS.includes(f.key));
@@ -372,7 +372,7 @@ function renderMemberCard(p, opts = {}) {
       <div class="mcard__photo">${photoHtml(p)}</div>
       <div class="mcard__head">
         <div class="mcard__name">${esc(p.name)}</div>
-        <div class="mcard__org">${esc([p.company, p.title].filter(Boolean).join("　"))}</div>
+        <div class="mcard__org">${esc(p.title || "")}</div>
       </div>
       <div class="mcard__tags">${tags}</div>
       ${p.tagline ? `<div class="mcard__tagline">${esc(p.tagline)}</div>` : ""}
@@ -700,7 +700,7 @@ const Demo = (() => {
   const SHEET_MAP = { Members: "members", AgencyPosts: "posts", Events: "events", EventEntries: "entries", Ads: "ads", AdRequests: "adRequests", Intros: "intros", Comments: "comments" };
   let seq = 100;
   const self = () => db.members.find(m => m.token === SELF);
-  const publicMember = m => { const { token, email, phone, lineUrl, lineQrUrl, instagramUrl, status, ...rest } = m; return rest; };
+  const publicMember = m => { const { token, company, email, phone, lineUrl, lineQrUrl, instagramUrl, status, ...rest } = m; return rest; };
   const commentsFor = (type, id) => db.comments.filter(c => c.targetType === type && c.targetId === id && c.status !== "非公開")
     .map(c => ({ id: c.id, body: c.body, timestamp: c.timestamp, isMine: c.authorToken === SELF }));
   const wait = v => new Promise(r => setTimeout(() => r(JSON.parse(JSON.stringify(v))), 250));
@@ -721,7 +721,7 @@ const Demo = (() => {
       case "listComments": return wait(commentsFor(p.targetType, p.targetId));
       case "listAgency": return wait({
         posts: db.posts.filter(x => x.status === "公開" || x.ownerToken === SELF).map(x => {
-          const { ownerToken, ...rest } = x;
+          const { ownerToken, ownerCompany, ...rest } = x;
           const owner = db.members.find(m => m.token === ownerToken) || {};
           return { ...rest, isMine: ownerToken === SELF, ownerArea: owner.area || "", comments: commentsFor("agency", x.id) };
         }),

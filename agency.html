@@ -144,7 +144,7 @@ function renderPostCard(p, mine = false) {
         ${mine ? `<span class="badge ${STATUS_BADGE[p.status] || ""}">${esc(p.status)}</span>` : ""}
       </div>
       <div class="pcard__title">${esc(p.title)}</div>
-      <div class="pcard__owner">募集者：${esc([p.ownerCompany, p.ownerName].filter(Boolean).join("　"))}</div>
+      <div class="pcard__owner">募集者：${esc(p.ownerName || "")}</div>
       <div class="pcard__reward"><div class="mcard__label">報酬・条件</div><div class="mcard__text">${esc(p.reward)}</div></div>
       <div class="mcard__body">
         ${row("募集エリア", p.area)}

@@ -97,7 +97,7 @@
   <div class="screen" id="screen-edit">
     <div class="panel">
       <div class="panel__title">プロフィール編集</div>
-      <div class="panel__lead">メールアドレス・電話番号は運営だけが確認します。LINE・Instagramは「繋がりたい」でつながった相手にだけ表示されます。</div>
+      <div class="panel__lead">会社名・メールアドレス・電話番号は運営だけが確認します。LINE・Instagramは「繋がりたい」でつながった相手にだけ表示されます。</div>
       <form id="profile-form" novalidate>
         <div id="fields"></div>
         <div class="btn-row">
@@ -168,7 +168,7 @@ function connRowHead(m) {
     <div class="conn-row__photo">${m.photoUrl ? `<img src="${esc(m.photoUrl)}" alt="">` : esc(String(m.name || "?").charAt(0))}</div>
     <div class="conn-row__main">
       <div class="conn-row__name">${esc(m.name)}</div>
-      <div class="conn-row__org">${esc([m.company, m.title, m.industry].filter(Boolean).join("　"))}</div>`;
+      <div class="conn-row__org">${esc([m.title, m.industry].filter(Boolean).join("　"))}</div>`;
 }
 
 function renderConnections() {
