@@ -268,3 +268,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--p
 .contacts__qr { display: inline-flex; flex-direction: column; align-items: center; gap: 2px; font-size: 11px; color: var(--muted); text-decoration: none; }
 .contacts__qr img { width: 88px; height: 88px; object-fit: contain; border: 1px solid var(--line); border-radius: var(--radius-sm); background: #fff; }
 .contacts__empty { font-size: 12.5px; color: var(--muted); }
+
+/* ホーム画面に追加の案内 */
+.install-guide .panel__title { display: flex; align-items: center; gap: 8px; }
+.install-steps { margin: 0 0 18px; padding-left: 1.4em; font-size: 13.5px; line-height: 1.9; color: var(--ink-soft); }

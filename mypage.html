@@ -7,6 +7,13 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=Montserrat:wght@700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="common.css">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#13294b">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="COACT">
 <style>
   .menu { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; margin-bottom: 20px; box-shadow: var(--shadow); }
   .menu a { display: flex; flex-direction: column; gap: 2px; background: var(--surface); padding: 22px 20px; text-decoration: none; color: var(--ink-soft); transition: background .15s; }
@@ -91,6 +98,7 @@
         </div>
       </div>
     </div>
+    <div id="install-guide"></div>
   </div>
 
   <!-- 編集 -->
@@ -120,6 +128,7 @@ renderProfileForm(fields, { mypage: true });
 let profile = null;
 
 function renderHome() {
+  renderInstallGuide(document.getElementById("install-guide"));
   document.getElementById("hello").textContent = `${profile.name} さんのマイページ`;
   const box = document.getElementById("status-box");
   if (profile.status === "承認待ち") {

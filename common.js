@@ -26,7 +26,20 @@ const AGENCY_STANCES = [
 // 「代理店を探す」ページに“代理店になりたい会員”として表示する区分
 const AGENT_SEEKER_STANCES = ["代理店として扱える商材を探している", "どちらも"];
 
-const TOKEN = new URLSearchParams(location.search).get("token") || "";
+// ホーム画面アプリとして起動したときは、URLに専用リンクが無くても前回のログイン情報で開く
+const IS_STANDALONE = window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+const TOKEN = (() => {
+  const fromUrl = new URLSearchParams(location.search).get("token") || "";
+  try {
+    if (fromUrl) localStorage.setItem("coact_token", fromUrl);
+    else if (IS_STANDALONE) return localStorage.getItem("coact_token") || "";
+  } catch (e) {}
+  return fromUrl;
+})();
+
+if ("serviceWorker" in navigator && location.protocol === "https:") {
+  navigator.serviceWorker.register("sw.js").catch(() => {});
+}
 
 // プロフィール入力項目（登録ページ・マイページ共通）
 const PROFILE_SECTIONS = [
@@ -237,6 +250,7 @@ const ICON_PATHS = {
   tag: '<path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.5"/>',
   mail: '<rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 6-10 7L2 6"/>',
   instagram: '<rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><path d="M17.5 6.5h.01"/>',
+  smartphone: '<rect x="6" y="2" width="12" height="20" rx="2"/><path d="M11 18h2"/>',
 };
 
 function icon(name) {
@@ -796,3 +810,50 @@ const Demo = (() => {
 
   return { get, post };
 })();
+
+// ---------------- ホーム画面に追加（アプリとして使う） ----------------
+
+let deferredInstallPrompt = null;
+window.addEventListener("beforeinstallprompt", e => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  document.querySelectorAll("[data-install-btn]").forEach(b => b.hidden = false);
+});
+
+// マイページに「ホーム画面に追加」の案内を表示する（すでにアプリで開いているときは出さない）
+function renderInstallGuide(el) {
+  if (!el || IS_STANDALONE || el.dataset.ready) return;
+  el.dataset.ready = "1";
+  const ua = navigator.userAgent;
+  const isIOS = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const isMobile = isIOS || /Android/.test(ua);
+  const steps = isIOS
+    ? `<ol class="install-steps">
+        <li>画面の下（または上）にある <b>共有ボタン</b>（四角から矢印が出ているマーク）を押す</li>
+        <li>メニューの中から <b>「ホーム画面に追加」</b> を選ぶ</li>
+        <li>右上の <b>「追加」</b> を押す</li>
+      </ol>`
+    : `<ol class="install-steps">
+        <li>下の <b>「ホーム画面に追加する」</b> ボタンを押す</li>
+        <li>ボタンが出ない場合は、ブラウザのメニュー（︙）から <b>「ホーム画面に追加」</b> または <b>「アプリをインストール」</b> を選ぶ</li>
+      </ol>`;
+  el.innerHTML = `
+    <div class="panel install-guide"${isMobile ? "" : " hidden"}>
+      <div class="panel__title">${icon("smartphone")} COACTをアプリとして使う</div>
+      <div class="panel__lead">スマホのホーム画面にCOACTのアイコンを置くと、次からはメールのリンクを探さずに、アイコンをタップするだけでこのマイページが開きます。<br><b>必ずこのマイページを開いた状態で追加してください。</b></div>
+      ${steps}
+      <button type="button" class="btn btn--accent btn--block" data-install-btn hidden>ホーム画面に追加する</button>
+    </div>`;
+  const panel = el.querySelector(".install-guide");
+  const btn = el.querySelector("[data-install-btn]");
+  if (deferredInstallPrompt) { btn.hidden = false; panel.hidden = false; }
+  window.addEventListener("beforeinstallprompt", () => { panel.hidden = false; });
+  btn.addEventListener("click", async () => {
+    if (!deferredInstallPrompt) return;
+    deferredInstallPrompt.prompt();
+    const { outcome } = await deferredInstallPrompt.userChoice;
+    deferredInstallPrompt = null;
+    if (outcome === "accepted") panel.hidden = true;
+  });
+  window.addEventListener("appinstalled", () => { panel.hidden = true; });
+}
