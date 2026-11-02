@@ -224,6 +224,21 @@ function renderHeader(active) {
       </span>
     </div></footer>`);
   hydrateIcons();
+  // 会員ページの上部に「返事待ちのリクエスト」「LINE・Instagram未登録」のお知らせを出す（マイページ内は専用の表示があるので出さない）
+  if (TOKEN && active && active !== "mypage" && active !== "register") loadMemberNotice();
+}
+
+async function loadMemberNotice() {
+  try {
+    const n = await apiGet("memberNotice", { token: TOKEN });
+    if (!n || n.error) return;
+    const items = [];
+    if (n.pendingRequests > 0) items.push(`${icon("mail")}<span>「繋がりたい」のリクエストが <b>${n.pendingRequests}件</b> 届いています。お返事をお願いします。</span><a class="btn btn--primary btn--small" href="${withToken("mypage.html")}#connections">返事をする</a>`);
+    if (n.missingContact) items.push(`${icon("alert")}<span>LINE・Instagramが未登録です。つながった相手にあなたの連絡先が表示されません。</span><a class="btn btn--ghost btn--small" href="${withToken("mypage.html")}#edit-sns">登録する</a>`);
+    if (!items.length) return;
+    const header = document.querySelector(".header");
+    header.insertAdjacentHTML("afterend", `<div class="notice-bar">${items.map(i => `<div class="notice-bar__item">${i}</div>`).join("")}</div>`);
+  } catch (e) {}
 }
 
 // ---------------- アイコン（線画SVG） ----------------
@@ -741,6 +756,10 @@ const Demo = (() => {
         }),
         agents: db.members.filter(m => m.token !== SELF && m.status === "公開" && AGENT_SEEKER_STANCES.includes(m.agencyStance))
           .map(withRelation),
+      });
+      case "memberNotice": return wait({
+        pendingRequests: db.intros.filter(x => x.targetType === "member" && x.targetId === self().publicId && x.status === "承認待ち").length,
+        missingContact: !(self().lineUrl || self().lineQrUrl || self().instagramUrl),
       });
       case "introQuota": {
         const month = new Date().toISOString().slice(0, 7);

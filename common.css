@@ -272,3 +272,11 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--p
 /* ホーム画面に追加の案内 */
 .install-guide .panel__title { display: flex; align-items: center; gap: 8px; }
 .install-steps { margin: 0 0 18px; padding-left: 1.4em; font-size: 13.5px; line-height: 1.9; color: var(--ink-soft); }
+
+/* ---- 会員ページ上部のお知らせ（返事待ち・LINE/Instagram未登録） ---- */
+.notice-bar { background: var(--warn-soft); border-bottom: 1px solid #efe3bf; }
+.notice-bar__item { max-width: 1040px; margin: 0 auto; padding: 10px 20px; display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--warn); }
+.notice-bar__item + .notice-bar__item { border-top: 1px solid #efe3bf; }
+.notice-bar__item span { flex: 1; }
+.notice-bar__item .btn { flex-shrink: 0; }
+@media (max-width: 680px) { .notice-bar__item { flex-wrap: wrap; padding: 10px 16px; } .notice-bar__item .btn { width: 100%; } }

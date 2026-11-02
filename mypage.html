@@ -246,6 +246,8 @@ async function load() {
     profile = data;
     renderHome();
     showOnly("screen-home");
+    // メールやお知らせの「登録する」から来たときは、LINE・Instagram の入力欄を開く
+    if (location.hash === "#edit-sns") openEdit("lineUrl");
   } catch (e) {
     showOnly("screen-error");
   }
@@ -258,7 +260,8 @@ function openEdit(focus) {
   showOnly("screen-edit");
   if (focus) {
     const target = (fields.querySelector(`[data-image-field="${focus}"]`) || fields.querySelector(`[name="${focus}"]`)).closest(".field");
-    setTimeout(() => window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 120, behavior: "smooth" }), 50);
+    // 画面切り替え時のスクロールが終わってから、目的の項目まで移動する
+    setTimeout(() => window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 120, behavior: "auto" }), 400);
   }
 }
 document.getElementById("edit-btn").addEventListener("click", () => openEdit());
